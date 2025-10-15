@@ -1,0 +1,10 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // outras configurações aqui...
+  
+  allowedDevOrigins: [
+    '192.168.137.1', '*', // Adicione o seu endereço IP aqui
+  ]
+};
+
+module.exports = nextConfig;
