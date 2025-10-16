@@ -1,34 +1,58 @@
-# Usa uma imagem base que já tem Nginx e PHP
-FROM ambientum/php:8.2-nginx
+# ======================================================================
+# FASE 1: BUILD (Construção do Laravel)
+# ======================================================================
+FROM php:8.2-fpm AS laravel_build
 
-# Define o diretório de trabalho dentro do container
+# Diretório de trabalho
 WORKDIR /var/www/html
 
-# Copia todos os ficheiros do seu Laravel para o container
-COPY . /var/www/html
-
-# Instala as dependências do sistema
+# Instalar dependências de sistema e extensões PHP
 RUN apt-get update && apt-get install -y \
     git \
+    curl \
     unzip \
+    nginx \
+    supervisor \
     libpng-dev \
     libjpeg-dev \
+    libonig-dev \
+    libzip-dev \
+    libpq-dev \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath opcache zip \
     && rm -rf /var/lib/apt/lists/*
 
-# Instala as extensões PHP necessárias para o Laravel
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath opcache
+# Instalar Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Define as permissões para a aplicação
-RUN chown -R www-data:www-data /var/www/html/storage \
-    && chown -R www-data:www-data /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage \
-    && chmod -R 775 /var/www/html/bootstrap/cache
+# Copiar o Laravel para o container
+COPY . /var/www/html
 
-# Instala as dependências do Composer
+# Instalar dependências PHP (sem dev)
 RUN composer install --no-dev --optimize-autoloader
 
-# Publica a configuração padrão do Nginx da imagem base (necessário para rodar)
-RUN bash /usr/bin/publish-nginx-config
+# Permissões adequadas para o Laravel
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Configura o supervisor para iniciar Nginx e PHP-FPM
-# O comando de entrada (ENTRYPOINT) da imagem base já faz isso automaticamente
+# ======================================================================
+# FASE 2: RUNTIME (Execução com Nginx + PHP-FPM via Supervisor)
+# ======================================================================
+FROM php:8.2-fpm
+
+WORKDIR /var/www/html
+
+# Instalar Nginx e Supervisor novamente no runtime
+RUN apt-get update && apt-get install -y nginx supervisor && rm -rf /var/lib/apt/lists/*
+
+# Copiar os ficheiros gerados na build
+COPY --from=laravel_build /var/www/html /var/www/html
+
+# Copiar configurações personalizadas
+COPY nginx.conf /etc/nginx/sites-available/default
+COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Expor porta padrão
+EXPOSE 80
+
+# Iniciar o supervisor (que inicia Nginx + PHP-FPM)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
