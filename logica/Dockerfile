@@ -3,7 +3,6 @@
 # ======================================================================
 FROM php:8.2-fpm AS laravel_build
 
-# Diretório de trabalho
 WORKDIR /var/www/html
 
 # Instalar dependências de sistema e extensões PHP
@@ -24,18 +23,18 @@ RUN apt-get update && apt-get install -y \
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copiar o Laravel para o container
+# Copiar Laravel
 COPY . /var/www/html
 
 # Instalar dependências PHP (sem dev)
 RUN composer install --no-dev --optimize-autoloader
 
-# Permissões adequadas para o Laravel
+# Garantir permissões corretas
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # ======================================================================
-# FASE 2: RUNTIME (Execução com Nginx + PHP-FPM via Supervisor)
+# FASE 2: RUNTIME (Execução + Automação)
 # ======================================================================
 FROM php:8.2-fpm
 
@@ -44,14 +43,27 @@ WORKDIR /var/www/html
 # Instalar Nginx e Supervisor no runtime
 RUN apt-get update && apt-get install -y nginx supervisor && rm -rf /var/lib/apt/lists/*
 
-# Copiar arquivos gerados e configs
+# Copiar arquivos do build
 COPY --from=laravel_build /var/www/html /var/www/html
+
+# Copiar configs
 COPY nginx.conf /etc/nginx/sites-available/default
 COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expor a porta HTTP
-EXPOSE 80
-RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
+# Gerar APP_KEY, rodar migrations e limpar cache automaticamente
+RUN php artisan key:generate --force \
+    && php artisan migrate --force || true \
+    && php artisan optimize:clear \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
 
-# Comando final
+# Ajustar permissões finais
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Expor porta HTTP
+EXPOSE 80
+
+# Iniciar Supervisor (que inicia Nginx + PHP-FPM)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
