@@ -51,6 +51,7 @@ COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Expor a porta HTTP
 EXPOSE 80
+RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
 
 # Comando final
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
