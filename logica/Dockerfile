@@ -1,59 +1,48 @@
 # ======================================================================
-# FASE 1: BUILD (Construção do Laravel)
+# FASE 1: BUILD (instala dependências e prepara o Laravel)
 # ======================================================================
-FROM php:8.2-fpm AS laravel_build
+FROM php:8.2-fpm AS build
 
 WORKDIR /var/www/html
 
-# Instalar dependências de sistema e extensões PHP (sem dev)
 RUN apt-get update && apt-get install -y \
     git \
-    curl \
     unzip \
-    nginx \
-    supervisor \
+    curl \
     libpng-dev \
     libjpeg-dev \
-    libonig-dev \
+    libfreetype6-dev \
     libzip-dev \
-    libpq-dev \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath opcache zip \
-    && rm -rf /var/lib/apt/lists/*
+    libonig-dev \
+    nginx \
+    supervisor \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copiar Laravel
+# Copiar o Laravel e instalar dependências
 COPY . /var/www/html
-
-# Instalar dependências PHP
-RUN composer install --no-dev --optimize-autoloader
-
-# Garantir permissões corretas
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+RUN composer install --no-dev --optimize-autoloader && \
+    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # ======================================================================
-# FASE 2: RUNTIME (Execução)
+# FASE 2: RUNTIME (executa Laravel + Nginx + PHP-FPM)
 # ======================================================================
 FROM php:8.2-fpm
 
-# Instalar Nginx e Supervisor
+WORKDIR /var/www/html
+
 RUN apt-get update && apt-get install -y nginx supervisor && rm -rf /var/lib/apt/lists/*
 
-# Copiar arquivos do build
-COPY --from=laravel_build /var/www/html /var/www/html
+COPY --from=build /var/www/html /var/www/html
 
-# Copiar configs
+# Copiar configurações
 COPY nginx.conf /etc/nginx/sites-available/default
 COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Ajustar permissões finais
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Expor porta HTTP
 EXPOSE 80
 
-# Comando é definido no Render (Docker Command)
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Gera key e roda migrações automaticamente
+CMD php artisan key:generate && php artisan migrate --force && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
