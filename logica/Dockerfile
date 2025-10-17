@@ -41,18 +41,16 @@ FROM php:8.2-fpm
 
 WORKDIR /var/www/html
 
-# Instalar Nginx e Supervisor novamente no runtime
+# Instalar Nginx e Supervisor no runtime
 RUN apt-get update && apt-get install -y nginx supervisor && rm -rf /var/lib/apt/lists/*
 
-# Copiar os ficheiros gerados na build
+# Copiar arquivos gerados e configs
 COPY --from=laravel_build /var/www/html /var/www/html
-
-# Copiar configurações personalizadas
 COPY nginx.conf /etc/nginx/sites-available/default
 COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expor porta padrão
+# Expor a porta HTTP
 EXPOSE 80
 
-# Iniciar o supervisor (que inicia Nginx + PHP-FPM)
+# Comando final
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
