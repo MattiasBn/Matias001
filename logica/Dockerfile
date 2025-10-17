@@ -41,13 +41,14 @@ RUN chown -R www-data:www-data /var/www/html \
 EXPOSE 80
 
 # ======================================================
-# ENTRYPOINT — inicialização automática e compatível com Render
+# ENTRYPOINT — compatível com Render e logs visíveis
 # ======================================================
 
 CMD bash -c "\
-if [ ! -f .env ]; then cp .env.example .env || echo 'APP_KEY=' > .env; fi && \
+mkdir -p /var/log/nginx /var/run && \
+touch /var/log/nginx/access.log /var/log/nginx/error.log && \
 php artisan key:generate --force && \
 php artisan config:cache && \
 php artisan route:cache && \
-echo '✅ Laravel iniciado com sucesso' && \
+echo '✅ Laravel iniciado com sucesso — Nginx e PHP prontos' && \
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
