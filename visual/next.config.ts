@@ -5,6 +5,7 @@ const nextConfig = {
   allowedDevOrigins: [
     '192.168.137.1', '*', // Adicione o seu endereço IP aqui
     'https://Sismatias.onrender.com'
+  
   ]
 };
 
