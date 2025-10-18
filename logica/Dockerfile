@@ -51,6 +51,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copiar a aplicação e configurações do build
 COPY --from=build /var/www/html /var/www/html
+COPY ca.pem /etc/ssl/certs/ca.pem
 COPY nginx.conf /etc/nginx/sites-available/default
 COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf
 
