@@ -94,7 +94,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
     <div class="container">
         <a class="navbar-brand d-flex align-items-center" href="#">
-            <img src="{{ asset('images/logo.png') }}" alt="Logo MatiaSistemas" class="custom-logo">
+            <img src="{{ asset('images/MatiaSistemas.png') }}" alt="Logo MatiaSistemas" class="custom-logo">
             <span class="fw-bold">MATIAISTEMAS | BACKEND</span>
         </a>
         <div class="d-flex">
