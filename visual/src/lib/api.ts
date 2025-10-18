@@ -1,7 +1,12 @@
 import axios from "axios";
 
+// na rede local
+//http://${typeof window !== "undefined" ? window.location.hostname : "192.168.137.1"}:8000`;
+
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
+
   `http://${typeof window !== "undefined" ? window.location.hostname : "192.168.137.1"}:8000`;
 
 const api = axios.create({
