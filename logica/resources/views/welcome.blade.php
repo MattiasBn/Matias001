@@ -22,6 +22,12 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        /* Espaço para o Logo Personalizado (Exemplo) */
+        .custom-logo {
+            height: 30px; /* Ajuste conforme a altura do seu logo */
+            margin-right: 10px;
+        }
+
         /* Elemento Central - Sugestão de Animação */
         .cube-container {
             position: relative;
@@ -37,7 +43,7 @@
         .data-flow-cube {
             width: 100%;
             height: 100%;
-            border: 2px solid rgba(0, 150, 255, 0.4); /* Cor de circuito azul */
+            border: 2px solid rgba(0, 150, 255, 0.4); 
             transform: rotateY(45deg) rotateX(35deg);
             background-color: rgba(0, 50, 100, 0.1);
             box-shadow: 0 0 50px rgba(0, 150, 255, 0.2);
@@ -47,7 +53,7 @@
         
         .core-leaf {
             font-size: 3rem;
-            color: #48d1cc; /* Cor aqua */
+            color: #48d1cc; 
             text-shadow: 0 0 15px #48d1cc;
             z-index: 10;
         }
@@ -86,36 +92,37 @@
 <body>
 
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <i class="fab fa-laravel fa-2x me-2" style="color:#48d1cc;"></i>
-                <span class="fw-bold">MATIAISTEMAS | BACKEND</span>
-            </a>
-            <div class="d-flex">
-                <a href="https://sismatias.onrender.com/" class="btn btn-outline-info me-2" target="_blank">FRONTEND NEXT.JS</a>
-            </div>
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <img src="{{ asset('images/logo.png') }}" alt="Logo MatiaSistemas" class="custom-logo">
+            <span class="fw-bold">MATIAISTEMAS | BACKEND</span>
+        </a>
+        <div class="d-flex">
+            <a href="https://sismatias.onrender.com/" class="btn btn-outline-info me-2 fw-bold" target="_blank">IR PARA PARTE VISUAL</a>
         </div>
-    </nav>
+    </div>
+</nav>
 
     <main class="container text-center py-5">
         
         <div class="mb-4 text-secondary">
             <p class="mb-1">
-                Versão do Sistema: **1.0.2025** 
+                Versão do Sistema: ** 1.0.2025 ** 
             </p>
             <p class="alert alert-dark d-inline-block p-2 mt-3">
-                Para entrar em comunicação, por favor, contacte-me:  Matias**937505622**
+                Para entrar em comunicação, por favor, contacte-me: Matias **   937505622   **
             </p>
         </div>
 
         <h1 class="display-3 fw-bold text-white mb-3 mt-5">O CÉREBRO DA SUA APLICAÇÃO</h1>
         <p class="lead text-secondary mb-5">
-            A fundação lógica, segura e escalável para o a parte visual do sistema
+            A fundação lógica, segura e escalável para um desenho frontal .
         </p>
 
         <div class="cube-container">
             <div class="data-flow-cube"></div>
-            <i class="fas fa-microchip core-leaf"></i> </div>
+            <i class="fas fa-microchip core-leaf"></i> 
+        </div>
 
         <div class="row g-4 pt-5">
             
@@ -131,7 +138,7 @@
                 <div class="feature-card h-100">
                     <i class="fas fa-database mb-3"></i>
                     <h5 class="fw-bold">DADOS SINFÔNICOS</h5>
-                    <p class="text-secondary">Sua base de dados Mysql orquestrada e criptografada.</p>
+                    <p class="text-secondary">Sua base de dados orquestrada e criptografada.</p>
                 </div>
             </div>
             
@@ -139,15 +146,15 @@
                 <div class="feature-card h-100">
                     <i class="fas fa-bolt mb-3"></i>
                     <h5 class="fw-bold">PERFORMANCE DINÂMICA</h5>
-                    <p class="text-secondary">Aplicação otimizada escalavel.</p>
+                    <p class="text-secondary">Aplicação otimizada e escalavel .</p>
                 </div>
             </div>
             
         </div>
         
         <div class="mt-5">
-            <a href="#" class="btn btn-custom btn-lg px-5">Antonio jose matias</a>
-            <p class="mt-2 text-secondary small">Programador web</p>
+            <a href="#" class="btn btn-custom btn-lg px-5">VER DOCUMENTAÇÃO</a>
+            <p class="mt-2 text-secondary small"> Framework | seguro </p>
         </div>
 
     </main>
