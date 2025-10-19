@@ -10,10 +10,11 @@ export default function NiveisPage() {
     
     // Seu código de componente vai aqui
     return (
-        <div>
-            <h1>Página de Níveis de Acesso</h1>
-            {/* Conteúdo da página */}
+       <div>
+
+            <h1>seja bem vindo </h1>
         </div>
+
     );
 }
 
