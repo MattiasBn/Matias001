@@ -1,14 +1,18 @@
-//import { User } from "@/context/AuthContext";
-
-// Resposta de /login
-export interface LoginResponse {
-  token?: string;
-  access_token?: string;
-  accessToken?: string;
-  user?: User;
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "funcionario" | "administrador" | "gerente";
+  telefone: string | null;
+  confirmar: boolean;
+  photo?: string | null;
 }
 
-// Resposta de /me
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
 export interface MeResponse {
-  user?: User;
+  user: User;
 }

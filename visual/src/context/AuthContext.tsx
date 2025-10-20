@@ -11,23 +11,13 @@ import {
 import { useRouter } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import api from "@/lib/api";
+import { User, MeResponse } from "@/types/api"; // usa o User daqui — sem duplicar
+
+
 import Loader from "@/components/animacao/Loader";
 import { AxiosError } from "axios";
 
 // Definição do Tipo de Usuário (User Type Definition)
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: "funcionario" | "administrador" | "gerente"; // 💡 Tipagem estrita
-  telefone: string | null;
-  confirmar: boolean; // 💡 Status de aprovação
-  photo?: string;
-}
-
-interface MeResponse {
-  user: User;
-}
 
 interface AuthContextType {
   user: User | null;
@@ -48,7 +38,7 @@ const normalizeStoredToken = (t: string | null | undefined) => {
   return s;
 };
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export  function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
