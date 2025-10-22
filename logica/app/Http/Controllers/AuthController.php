@@ -198,6 +198,7 @@ class AuthController extends Controller
  * -/**
  * Redireciona para o Google (web flow)
  */
+
 public function redirectToGoogleWeb()
 {
     return Socialite::driver('google')->redirect();
