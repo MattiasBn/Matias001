@@ -158,7 +158,7 @@ export default function Register() {
               </Button>
 
               {/* === CAMPOS ORIGINAIS (inalterados) === */}
-              ... (mantive 100% do restante do teu código aqui — nada foi alterado)
+             
               
               <Button className="w-full" type="submit" disabled={loading}>
                 {loading ? (
