@@ -6,6 +6,7 @@ export interface User {
   telefone: string | null;
   confirmar: boolean;
   photo?: string | null;
+  google_id?: string
 }
 
 export interface LoginResponse {

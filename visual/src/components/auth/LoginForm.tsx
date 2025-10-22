@@ -87,7 +87,6 @@ export function LoginForm() {
         return;
       }
 
-      // delega ao AuthContext (que já faz redirect conforme role)
       login(token, user);
     } catch (err) {
       if (err instanceof AxiosError) {
@@ -114,6 +113,12 @@ export function LoginForm() {
     }
   };
 
+  // ✅ NOVO - LOGIN COM GOOGLE (OPÇÃO 1)
+  const handleGoogleLogin = () => {
+    window.location.href =
+      "https://matias001.onrender.com/api/auth/google/redirect";
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
       <motion.div
@@ -134,7 +139,6 @@ export function LoginForm() {
 
           <CardContent className="p-4 sm:p-6 pt-2 sm:pt-4">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              {/* Email */}
               <div className="space-y-2">
                 <Label
                   htmlFor="email"
@@ -152,7 +156,6 @@ export function LoginForm() {
                 />
               </div>
 
-              {/* Senha */}
               <div className="space-y-2">
                 <Label
                   htmlFor="password"
@@ -183,7 +186,6 @@ export function LoginForm() {
                 </div>
               </div>
 
-              {/* Erro */}
               {error && (
                 <Alert variant="destructive">
                   <AlertTitle>Erro no Login</AlertTitle>
@@ -191,7 +193,6 @@ export function LoginForm() {
                 </Alert>
               )}
 
-              {/* Botão */}
               <Button className="w-full" type="submit" disabled={isLoading}>
                 {isLoading ? (
                   <span className="flex items-center justify-center space-x-2">
@@ -205,22 +206,31 @@ export function LoginForm() {
               </Button>
             </form>
 
-            {/* Links adicionais */}
+            {/* ✅ NOVO — BOTÃO GOOGLE */}
+            <Button
+              variant="outline"
+              className="w-full mt-3"
+              onClick={handleGoogleLogin}
+            >
+              <span className="flex items-center justify-center space-x-2">
+                <img
+                  src="https://www.google.com/favicon.ico"
+                  className="h-4 w-4"
+                />
+                <span>Entrar com Google</span>
+              </span>
+            </Button>
+
             <div className="mt-4 text-center">
               <Button
                 variant="link"
                 onClick={() => router.push("/esqueceu-senha")}
-                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >
                 Esqueceu a senha?
               </Button>
             </div>
             <div className="mt-2 text-center">
-              <Button
-                variant="link"
-                onClick={() => router.push("/register")}
-                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              >
+              <Button variant="link" onClick={() => router.push("/register")}>
                 Não tem uma conta? Registar-se
               </Button>
             </div>

@@ -12,8 +12,28 @@ use App\Http\Controllers\FuncionarioController;
 // ==============================
 // Rotas públicas (sem autenticação)
 // ==============================
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+
+use Illuminate\Support\Facades\Cache;
+
+Route::get('/auth/social/temp/{key}', function ($key) {
+    $data = Cache::get("social:{$key}");
+    if (!$data) {
+        return response()->json(['message' => 'Dados temporários não encontrados ou expirados.'], 404);
+    }
+    return response()->json($data);
+});
+
+
+
+Route::get('/auth/google/web/redirect', [AuthController::class, 'redirectToGoogleWeb']);
+Route::get('/auth/google/web/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
+
+
+//rota do laravel  socialite para ssesao e cadastros com a google 
+
+Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle']);
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+
 
 // Recuperação de senha
 Route::middleware('api')->group(function () {

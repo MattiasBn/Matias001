@@ -6,7 +6,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 
 class AuthController extends Controller
 {
@@ -32,6 +35,7 @@ class AuthController extends Controller
             'role'      => $request->role ?? 'funcionario',
             'telefone'  => $request->telefone,
             'confirmar' => false, // conta bloqueada até aprovação
+            'photo'     => $request->photo,
         ]);
 
         return response()->json([
@@ -180,10 +184,53 @@ class AuthController extends Controller
         return response()->json($users);
     }
 
-
-// No seu AuthController.php
+// funcao do socialite 
 
 /**
- * Ativar/desativar conta de usuário
+ * 1) D/**
+ * Redirect via WEB (usa session cookies) - abre a página do Google
  */
+public function redirectToGoogleWeb()
+{
+    return Socialite::driver('google')->redirect();
+}
+
+/**
+ * Callback WEB do Google
+ * - cria/acha user
+ * - se novo: guarda dados temporários no cache e redireciona para front /complete-registration?social_key=...
+ * - se existente e aprovado: gera token e redireciona para front /auth/success?token=...
+ */public function handleGoogleCallback()
+{
+    try {
+        $googleUser = Socialite::driver('google')->user();
+    } catch (\Exception $e) {
+        return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
+    }
+
+    // Verificar usuário
+    $user = User::where('email', $googleUser->getEmail())->first();
+
+    if (!$user) {
+        $user = User::create([
+            'name'      => $googleUser->getName(),
+            'email'     => $googleUser->getEmail(),
+            'google_id' => $googleUser->getId(),
+            'photo'     => $googleUser->getAvatar(),
+            'password'  => Hash::make(Str::random(16)),
+            'role'      => 'funcionario',
+            'confirmar' => false
+        ]);
+    }
+
+    // Gera token Sanctum
+    $user->tokens()->delete();
+    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+    // Redireciona para o Next passando o token
+    return redirect()->away(
+        env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token
+    );
+}
+ 
 }

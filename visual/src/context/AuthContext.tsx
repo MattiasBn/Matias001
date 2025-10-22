@@ -11,13 +11,9 @@ import {
 import { useRouter } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import api from "@/lib/api";
-import { User, MeResponse } from "@/types/api"; // usa o User daqui — sem duplicar
-
-
+import { User, MeResponse } from "@/types/api";
 import Loader from "@/components/animacao/Loader";
 import { AxiosError } from "axios";
-
-// Definição do Tipo de Usuário (User Type Definition)
 
 interface AuthContextType {
   user: User | null;
@@ -25,12 +21,12 @@ interface AuthContextType {
   login: (token: string, userData: User) => void;
   logout: () => void;
   loading: boolean;
-  fetchLoggedUser: () => Promise<void>; // 💡 NOVO: Função para revalidar o usuário
+  fetchLoggedUser: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>; // ✅ ADICIONADO
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Função auxiliar para normalizar e limpar tokens armazenados
 const normalizeStoredToken = (t: string | null | undefined) => {
   if (!t) return null;
   const s = String(t).trim();
@@ -38,7 +34,7 @@ const normalizeStoredToken = (t: string | null | undefined) => {
   return s;
 };
 
-export  function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -52,7 +48,6 @@ export  function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // 💡 NOVO: Função para buscar dados do usuário logado (reutilizada no useEffect e nas ações do Admin)
   const fetchLoggedUser = useCallback(async () => {
     const tokenFromStorage = normalizeStoredToken(
       localStorage.getItem("token") || cookies.get("token")
@@ -65,18 +60,15 @@ export  function AuthProvider({ children }: { children: ReactNode }) {
 
     setApiToken(tokenFromStorage);
 
-    // Tenta carregar do localStorage primeiro para evitar flicker
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch {
-        // Se falhar, limpa o user
         localStorage.removeItem("user");
       }
     }
 
-    // Chama /me para revalidar a sessão
     try {
       const response = await api.get<MeResponse>("/me");
       const userData = response.data.user;
@@ -84,22 +76,14 @@ export  function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("user", JSON.stringify(userData));
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 401) {
-        console.warn("Sessão inválida. Fazendo logout silencioso.");
-        // Não chama `logout()` aqui para evitar loop, limpa manualmente
         cookies.remove("token", { path: "/" });
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setUser(null);
         setApiToken(null);
-      } else {
-        console.error("Erro ao buscar usuário:", error);
       }
-    } finally {
-      // O loading só deve ser finalizado na primeira execução (useEffect)
-      // para evitar que ações do admin façam a tela piscar.
     }
   }, [cookies]);
-
 
   const login = useCallback(
     (token: string, userData: User) => {
@@ -115,7 +99,6 @@ export  function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
       }
 
-      // redireciona imediatamente pelo role
       switch (userData.role) {
         case "administrador":
           router.push("/dashboard/admin");
@@ -138,8 +121,6 @@ export  function AuthProvider({ children }: { children: ReactNode }) {
       const tokenFromStorage = normalizeStoredToken(
         localStorage.getItem("token") || cookies.get("token")
       );
-
-      // Tenta enviar o logout para o servidor para invalidar o token
       if (tokenFromStorage) {
         await api.post(
           "/logout",
@@ -147,10 +128,8 @@ export  function AuthProvider({ children }: { children: ReactNode }) {
           { headers: { Authorization: `Bearer ${tokenFromStorage}` } }
         );
       }
-    } catch (error) {
-      console.warn("Falha ao fazer logout no servidor:", error);
-    } finally {
-      // Limpeza local e redirecionamento, independente do sucesso do servidor
+    } catch {}
+    finally {
       cookies.remove("token", { path: "/" });
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -160,35 +139,49 @@ export  function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [cookies, router]);
 
-  // ao carregar a página, tenta restaurar user se houver token e user salvo
+  // ✅ NOVA FUNÇÃO DO GOOGLE
+  const loginWithGoogle = useCallback(async () => {
+    try {
+      const response = await api.get("/auth/google/web/redirect");
+      if (response.data?.auth_url) {
+        window.location.href = response.data.auth_url;
+      }
+    } catch (error) {
+      console.error("Erro ao iniciar login com Google:", error);
+    }
+  }, []);
+
   useEffect(() => {
     const tokenFromStorage = normalizeStoredToken(
       localStorage.getItem("token") || cookies.get("token")
     );
 
     if (!tokenFromStorage) {
-      // Sem token → termina loading
       setLoading(false);
       return;
     }
 
-    // Chama a função de busca e garante que o loading termine
     const initializeAuth = async () => {
-      await fetchLoggedUser(); 
+      await fetchLoggedUser();
       setLoading(false);
     };
 
     initializeAuth();
-    
-  }, [cookies, fetchLoggedUser]); // 💡 `fetchLoggedUser` adicionado à dependência
+  }, [cookies, fetchLoggedUser]);
 
-  if (loading) {
-    return <Loader />;
-  }
+  if (loading) return <Loader />;
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, login, logout, loading, fetchLoggedUser }} // 💡 fetchLoggedUser adicionado ao value
+      value={{
+        user,
+        isAuthenticated: !!user,
+        login,
+        logout,
+        loading,
+        fetchLoggedUser,
+        loginWithGoogle, // ✅ ADICIONADO
+      }}
     >
       {children}
     </AuthContext.Provider>
