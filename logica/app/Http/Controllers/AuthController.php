@@ -190,47 +190,63 @@ class AuthController extends Controller
  * 1) D/**
  * Redirect via WEB (usa session cookies) - abre a página do Google
  */
+
+/**
+ * Callback WEB do Google
+ * - cria/acha user
+ * - se novo: guarda dados temporários no cache e redireciona para front /complete-registration?social_key=...
+ * -/**
+ * Redireciona para o Google (web flow)
+ */
 public function redirectToGoogleWeb()
 {
     return Socialite::driver('google')->redirect();
 }
 
 /**
- * Callback WEB do Google
- * - cria/acha user
- * - se novo: guarda dados temporários no cache e redireciona para front /complete-registration?social_key=...
- * - se existente e aprovado: gera token e redireciona para front /auth/success?token=...
- */public function handleGoogleCallback()
+ * Callback do Google (web flow)
+ * - cria/atualiza usuário
+ * - gera token Sanctum
+ * - redireciona para o frontend com ?token=...
+ */
+public function handleGoogleCallbackWeb()
 {
     try {
         $googleUser = Socialite::driver('google')->user();
     } catch (\Exception $e) {
+        // Se der erro no callback, redireciona para front com erro simples
         return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
     }
 
-    // Verificar usuário
-    $user = User::where('email', $googleUser->getEmail())->first();
+    // Procurar user pelo email
+    $user = \App\Models\User::where('email', $googleUser->getEmail())->first();
 
     if (!$user) {
-        $user = User::create([
+        // Cria usuário incompleto / híbrido
+        $user = \App\Models\User::create([
             'name'      => $googleUser->getName(),
             'email'     => $googleUser->getEmail(),
             'google_id' => $googleUser->getId(),
             'photo'     => $googleUser->getAvatar(),
-            'password'  => Hash::make(Str::random(16)),
+            // senha temporária segura
+            'password'  => Hash::make(Str::random(40)),
             'role'      => 'funcionario',
-            'confirmar' => false
+            'confirmar' => false,
         ]);
+    } else {
+        // garante google_id e photo atualizados
+        $updated = false;
+        if (!$user->google_id) { $user->google_id = $googleUser->getId(); $updated = true; }
+        if (!$user->photo && $googleUser->getAvatar()) { $user->photo = $googleUser->getAvatar(); $updated = true; }
+        if ($updated) $user->save();
     }
 
-    // Gera token Sanctum
+    // Gera token Sanctum e revoga tokens antigos
     $user->tokens()->delete();
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-    // Redireciona para o Next passando o token
-    return redirect()->away(
-        env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token
-    );
+    // Redireciona para o front com token (o Next irá buscar /me com este token)
+    return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
 }
  
 }

@@ -1,3 +1,4 @@
+// src/components/auth/LoginForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -33,6 +34,7 @@ interface LoginResponse {
     telefone: string | null;
     confirmar: boolean;
     photo?: string;
+    google_id?: string;
   };
 }
 
@@ -114,10 +116,10 @@ export function LoginForm() {
     }
   };
 
-  // ✅ NOVO - LOGIN COM GOOGLE (OPÇÃO 1)
+  // NOVO - handleGoogleLogin (redireciona direto para o backend)
   const handleGoogleLogin = () => {
-    window.location.href =
-      "https://matias001.onrender.com/api/auth/google/redirect";
+    // usa NEXT_PUBLIC_API_URL sem /api porque o Laravel está nas rotas web
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/redirect`;
   };
 
   return (
@@ -136,16 +138,11 @@ export function LoginForm() {
             <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
               Bem-vindo de volta! Por favor, insira as suas credenciais.
             </CardDescription>
-
-        <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              <strong> Este sistema está em desemvolvimeno <br /> desemvolvedor Belson  </strong>
-            </CardDescription>
-
-
           </CardHeader>
 
           <CardContent className="p-4 sm:p-6 pt-2 sm:pt-4">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+              {/* Email */}
               <div className="space-y-2">
                 <Label
                   htmlFor="email"
@@ -163,6 +160,7 @@ export function LoginForm() {
                 />
               </div>
 
+              {/* Senha */}
               <div className="space-y-2">
                 <Label
                   htmlFor="password"
@@ -193,6 +191,7 @@ export function LoginForm() {
                 </div>
               </div>
 
+              {/* Erro */}
               {error && (
                 <Alert variant="destructive">
                   <AlertTitle>Erro no Login</AlertTitle>
@@ -200,6 +199,7 @@ export function LoginForm() {
                 </Alert>
               )}
 
+              {/* Botão */}
               <Button className="w-full" type="submit" disabled={isLoading}>
                 {isLoading ? (
                   <span className="flex items-center justify-center space-x-2">
@@ -213,14 +213,11 @@ export function LoginForm() {
               </Button>
             </form>
 
-            {/* ✅ NOVO — BOTÃO GOOGLE */}
-            <Button
-              variant="outline"
-              className="w-full mt-3"
-              onClick={handleGoogleLogin}
-            >
+            {/* Botão Google (mesmo estilo, sem cor vermelha) */}
+            <Button variant="outline" className="w-full mt-3" onClick={handleGoogleLogin}>
               <span className="flex items-center justify-center space-x-2">
-                <Image
+
+                              <Image
                   src="https://www.google.com/favicon.ico"
                   alt="Ícone do Google" // 👈 Obrigatório para acessibilidade
                   width={16}           // 👈 Obrigatório para otimização (16px para h-4)
@@ -232,10 +229,7 @@ export function LoginForm() {
             </Button>
 
             <div className="mt-4 text-center">
-              <Button
-                variant="link"
-                onClick={() => router.push("/esqueceu-senha")}
-              >
+              <Button variant="link" onClick={() => router.push("/esqueceu-senha")}>
                 Esqueceu a senha?
               </Button>
             </div>

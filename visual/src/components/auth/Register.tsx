@@ -1,3 +1,4 @@
+// src/components/auth/RegisterForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -13,6 +14,7 @@ import api from "@/lib/api";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
 import type { AxiosError } from "axios";
+import Image from 'next/image';
 
 import "react-phone-input-2/lib/style.css";
 
@@ -70,8 +72,9 @@ export default function Register() {
     setShowPassword(!showPassword);
   };
 
+  // botão registrar com google (igual estilo do login)
   const handleGoogleRegister = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/web/redirect`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/redirect`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,19 +150,130 @@ export default function Register() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {/* === Botão Google ACIMA do Registrar === */}
-              <Button
-                type="button"
-                onClick={handleGoogleRegister}
-                className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600"
-              >
-                <LogIn className="h-4 w-4" /> Registrar com Google
+
+              {/* === Botão Google ACIMA do Registrar (mesmo estilo) === */}
+              <Button variant="outline" className="w-full flex items-center justify-center gap-2" onClick={handleGoogleRegister}>
+                              <Image
+                  src="https://www.google.com/favicon.ico"
+                  alt="Ícone do Google" // 👈 Obrigatório para acessibilidade
+                  width={16}           // 👈 Obrigatório para otimização (16px para h-4)
+                  height={16}          // 👈 Obrigatório para otimização (16px para w-4)
+                  className="h-4 w-4"
+/>
               </Button>
 
               {/* === CAMPOS ORIGINAIS (inalterados) === */}
-             
-              
+
+              <div>
+                <Label htmlFor="name" className="flex items-center gap-2">
+                  <User className="h-4 w-4" /> Nome
+                </Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Seu nome"
+                  className={errors.name ? "border-red-500" : ""}
+                />
+                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" /> Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Seu email"
+                  className={errors.email ? "border-red-500" : ""}
+                />
+                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="telefone" className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" /> Telefone
+                </Label>
+                <PhoneInput
+                  country={"ao"}
+                  value={telefone}
+                  onChange={setTelefone}
+                  inputClass={`!w-full !h-10 !rounded-md !border px-3 text-sm 
+                                    !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white 
+                                    ${errors.telefone ? "!border-red-500" : ""}`}
+                  dropdownClass="!bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !rounded-md shadow-lg"
+                  searchClass="!bg-gray-50 dark:!bg-gray-700 !text-gray-900 dark:!text-white !rounded-md"
+                  placeholder="Número de telefone"
+                />
+                {errors.telefone && <p className="text-red-500 text-sm mt-1">{errors.telefone}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="password" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" /> Senha
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Sua senha"
+                    className={errors.password ? "border-red-500" : ""}
+                  />
+                  {formData.password.length > 0 && (
+                    <span className="absolute right-8 top-1/2 -translate-y-1/2">
+                      <CheckCircle
+                        className={`h-4 w-4 ${isPasswordSecure ? "text-green-500" : "text-gray-400"}`}
+                      />
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+                <p className="text-xs text-gray-500 mt-1">
+                  Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="password_confirmation" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" /> Confirmar Senha
+                </Label>
+                <Input
+                  id="password_confirmation"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password_confirmation}
+                  onChange={handleChange}
+                  placeholder="Confirme a senha"
+                  className={errors.password_confirmation ? "border-red-500" : ""}
+                />
+                {errors.password_confirmation && (
+                  <p className="text-red-500 text-sm mt-1">{errors.password_confirmation}</p>
+                )}
+              </div>
+
+              {errors.global && (
+                <Alert variant="destructive" className="border-red-500">
+                  <AlertTitle>Erro</AlertTitle>
+                  <AlertDescription>{errors.global}</AlertDescription>
+                </Alert>
+              )}
+              {success && (
+                <Alert className="border-green-500 text-green-700 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" /> <AlertDescription>{success}</AlertDescription>
+                </Alert>
+              )}
+
               <Button className="w-full" type="submit" disabled={loading}>
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -169,7 +283,6 @@ export default function Register() {
                   "Registrar"
                 )}
               </Button>
-
             </form>
 
             <div className="mt-4 text-center">
