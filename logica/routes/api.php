@@ -27,6 +27,8 @@ Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
 
 
+ Route::post('/login', [AuthController::class, 'login']);
+
 //rota do laravel  socialite para ssesao e cadastros com a google 
 
 // Recuperação de senha
