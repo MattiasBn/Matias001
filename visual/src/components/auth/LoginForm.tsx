@@ -19,6 +19,7 @@ import { AxiosError } from "axios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AtSign, Lock, LogIn, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import Image from 'next/image';
 
 interface LoginResponse {
   token?: string;
@@ -135,6 +136,12 @@ export function LoginForm() {
             <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
               Bem-vindo de volta! Por favor, insira as suas credenciais.
             </CardDescription>
+
+        <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              <strong> Este sistema está em desemvolvimeno <br /> desemvolvedor Belson  </strong>
+            </CardDescription>
+
+
           </CardHeader>
 
           <CardContent className="p-4 sm:p-6 pt-2 sm:pt-4">
@@ -213,8 +220,11 @@ export function LoginForm() {
               onClick={handleGoogleLogin}
             >
               <span className="flex items-center justify-center space-x-2">
-                <img
+                <Image
                   src="https://www.google.com/favicon.ico"
+                  alt="Ícone do Google" // 👈 Obrigatório para acessibilidade
+                  width={16}           // 👈 Obrigatório para otimização (16px para h-4)
+                  height={16}          // 👈 Obrigatório para otimização (16px para w-4)
                   className="h-4 w-4"
                 />
                 <span>Entrar com Google</span>

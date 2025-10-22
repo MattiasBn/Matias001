@@ -23,17 +23,11 @@ Route::get('/auth/social/temp/{key}', function ($key) {
     return response()->json($data);
 });
 
-
-
-Route::get('/auth/google/web/redirect', [AuthController::class, 'redirectToGoogleWeb']);
-Route::get('/auth/google/web/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
+Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb']);
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
 
 
 //rota do laravel  socialite para ssesao e cadastros com a google 
-
-Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle']);
-Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
-
 
 // Recuperação de senha
 Route::middleware('api')->group(function () {
