@@ -217,7 +217,7 @@ export function LoginForm() {
             <Button variant="outline" className="w-full mt-3" onClick={handleGoogleLogin}>
               <span className="flex items-center justify-center space-x-2">
 
-                              <Image
+                 <Image
                   src="https://www.google.com/favicon.ico"
                   alt="Ícone do Google" // 👈 Obrigatório para acessibilidade
                   width={16}           // 👈 Obrigatório para otimização (16px para h-4)
