@@ -153,13 +153,17 @@ export default function Register() {
 
               {/* === Botão Google ACIMA do Registrar (mesmo estilo) === */}
               <Button variant="outline" className="w-full flex items-center justify-center gap-2" onClick={handleGoogleRegister}>
+                <span className="flex items-center justify-center space-x-2">
+
                               <Image
                   src="https://www.google.com/favicon.ico"
                   alt="Ícone do Google" // 👈 Obrigatório para acessibilidade
                   width={16}           // 👈 Obrigatório para otimização (16px para h-4)
                   height={16}          // 👈 Obrigatório para otimização (16px para w-4)
                   className="h-4 w-4"
-/>
+                        />
+                        <span>Registar se a com Google</span>
+                         </span>
               </Button>
 
               {/* === CAMPOS ORIGINAIS (inalterados) === */}
