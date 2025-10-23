@@ -10,6 +10,8 @@ use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Laravel\Socialite\Contracts\Provider;
+use Illuminate\Support\Facades\Http;
 
 
 class AuthController extends Controller
@@ -200,61 +202,49 @@ class AuthController extends Controller
  * Redireciona para o Google (web flow)
  */
 
-public function redirectToGoogleWeb()
-{
+    public function redirectToGoogleWeb()
+    {
+        $redirectUrl = Socialite::driver('google')
+            ->stateless()
+            ->redirect()
+            ->getTargetUrl();
 
-    return Socialite::driver('google')->redirect();
-
-   // return Socialite::driver('google')->stateless()->redirect();
-}
-
-/**
- * Callback do Google (web flow)
- * - cria/atualiza usuário
- * - gera token Sanctum
- * - redireciona para o frontend com ?token=...
- */
-public function handleGoogleCallbackWeb()
-{
-    try {
-
-     //  $googleUser = Socialite::driver('google')->stateless()->user();
-
-       $googleUser = Socialite::driver('google')->user();
-    } catch (\Exception $e) {
-        // Se der erro no callback, redireciona para front com erro simples
-        return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
+        return response()->json(['url' => $redirectUrl]);
     }
 
-    // Procurar user pelo email
-    $user = \App\Models\User::where('email', $googleUser->getEmail())->first();
+    public function handleGoogleCallbackWeb()
+    {
+        try {
+            $provider = Socialite::driver('google');
+            $googleUser = $provider->stateless()->user();
+        } catch (\Exception $e) {
+            return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
+        }
 
-    if (!$user) {
-        // Cria usuário incompleto / híbrido
-        $user = \App\Models\User::create([
-            'name'      => $googleUser->getName(),
-            'email'     => $googleUser->getEmail(),
-            'google_id' => $googleUser->getId(),
-            'photo'     => $googleUser->getAvatar(),
-            // senha temporária segura
-            'password'  => Hash::make(Str::random(40)),
-            'role'      => 'funcionario',
-            'confirmar' => false,
-        ]);
-    } else {
-        // garante google_id e photo atualizados
-        $updated = false;
-        if (!$user->google_id) { $user->google_id = $googleUser->getId(); $updated = true; }
-        if (!$user->photo && $googleUser->getAvatar()) { $user->photo = $googleUser->getAvatar(); $updated = true; }
-        if ($updated) $user->save();
+        $user = User::where('email', $googleUser->getEmail())->first();
+
+        if (!$user) {
+            $user = User::create([
+                'name'      => $googleUser->getName(),
+                'email'     => $googleUser->getEmail(),
+                'google_id' => $googleUser->getId(),
+                'photo'     => $googleUser->getAvatar(),
+                'password'  => Hash::make(Str::random(40)),
+                'role'      => 'funcionario',
+                'confirmar' => false,
+            ]);
+        } else {
+            $updated = false;
+            if (!$user->google_id) { $user->google_id = $googleUser->getId(); $updated = true; }
+            if (!$user->photo && $googleUser->getAvatar()) { $user->photo = $googleUser->getAvatar(); $updated = true; }
+            if ($updated) $user->save();
+        }
+
+        // Revoga tokens antigos e gera um novo
+        $user->tokens()->delete();
+        $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+        return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
     }
-
-    // Gera token Sanctum e revoga tokens antigos
-    $user->tokens()->delete();
-    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-    // Redireciona para o front com token (o Next irá buscar /me com este token)
-    return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
-}
  
 }

@@ -8,7 +8,7 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\GerenteController;
 use App\Http\Controllers\FuncionarioController;
-
+use Illuminate\Session\Middleware\StartSession;
 // ==============================
 // Rotas públicas (sem autenticação)
 // ==============================
@@ -22,14 +22,15 @@ Route::get('/auth/social/temp/{key}', function ($key) {
     }
     return response()->json($data);
 });
-
 Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
 
 
  Route::post('/login', [AuthController::class, 'login']);
 
-//rota do laravel  socialite para ssesao e cadastros com a google 
+Route::post('/register', [AuthController::class, 'register']);
+
+//rota do laravel  socialite para ssesao e cadastros com a google register
 
 // Recuperação de senha
 Route::middleware('api')->group(function () {
