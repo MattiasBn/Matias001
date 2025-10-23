@@ -74,7 +74,7 @@ export default function Register() {
 
   // botão registrar com google (igual estilo do login)
   const handleGoogleRegister = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/redirect`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -202,7 +202,10 @@ class AuthController extends Controller
 
 public function redirectToGoogleWeb()
 {
+
     return Socialite::driver('google')->redirect();
+
+   // return Socialite::driver('google')->stateless()->redirect();
 }
 
 /**
@@ -214,7 +217,10 @@ public function redirectToGoogleWeb()
 public function handleGoogleCallbackWeb()
 {
     try {
-        $googleUser = Socialite::driver('google')->user();
+
+     //  $googleUser = Socialite::driver('google')->stateless()->user();
+
+       $googleUser = Socialite::driver('google')->user();
     } catch (\Exception $e) {
         // Se der erro no callback, redireciona para front com erro simples
         return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
