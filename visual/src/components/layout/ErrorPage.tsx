@@ -43,13 +43,20 @@ export function ErrorPage({ statusCode, title, message, onReset }: ErrorPageProp
   }, []);
 
   const handleGoHome = () => {
-    router.push("/login");
+    router.push("/login"); // Vai sempre para a página de login
   };
-  
-  // NOVA FUNÇÃO PARA VOLTAR NA PÁGINA ANTERIOR
-  const handleGoBack = () => {
-    router.back();
-  };
+  
+  // FUNÇÃO MELHORADA: Tenta voltar no histórico, se não conseguir, vai para o login
+  const handleGoBack = () => {
+    // Verifica se há histórico de navegação para voltar
+    if (window.history.length > 2) { 
+        router.back();
+    } else {
+        // Se não houver histórico anterior significativo, redireciona para um local seguro.
+        // Mantenho o /login como fallback, mas o ideal seria /dashboard se o usuário já estiver logado.
+        router.push("/login"); 
+    }
+  };
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center text-white bg-black">
@@ -63,7 +70,6 @@ export function ErrorPage({ statusCode, title, message, onReset }: ErrorPageProp
           {animationData ? (
             <Lottie animationData={animationData} loop={true} />
           ) : (
-            // Adiciona um fallback simples enquanto a animação carrega
             <div className="h-64 flex items-center justify-center">
               <span className="text-xl">A carregar animação...</span>
             </div>
@@ -79,37 +85,42 @@ export function ErrorPage({ statusCode, title, message, onReset }: ErrorPageProp
         <motion.p className="mt-4 max-w-md mx-auto text-lg" variants={itemVariants}>
           {message || "A rota que você tentou acessar não existe ou a internet caiu. Tente novamente."}
         </motion.p>
-        <motion.div className="mt-8 flex gap-4 justify-center flex-wrap" variants={itemVariants}>
-          {onReset && (
-            <Button
-              onClick={onReset}
-              className="bg-green-600 hover:bg-green-700 text-white" // Mantive o botão de reset como destaque, como estava
-            >
-              Tentar Novamente
-            </Button>
-          )}
-          
-          {/* NOVO BOTÃO: Voltar para a Página Anterior (estilo discreto) */}
-          <Button
-            onClick={handleGoBack}
-            // Usei 'ghost' ou 'link' para ser discreto (depende do seu componente Button).
-            // Se o seu componente Button for do shadcn/ui, 'variant="ghost"' ou 'variant="link"' funciona melhor.
-            // Se for um componente customizado, usei classes de texto e hover discretas.
-            variant="ghost" // Se 'Button' for do shadcn/ui
-            className="text-gray-400 hover:text-white hover:bg-transparent px-4 py-2 text-base"
-          >
-            Voltar
-          </Button>
+        
+        {/* REESTRUTURAÇÃO E ORGANIZAÇÃO PROFISSIONAL DOS BOTÕES */}
+        <motion.div 
+            className="mt-8 flex flex-col sm:flex-row gap-3 justify-center items-center w-full" 
+            variants={itemVariants}
+        >
+            {/* 1. BOTÃO PRINCIPAL (Tentar Novamente - Se existir) */}
+            {onReset && (
+              <Button
+                onClick={onReset}
+                className="w-full sm:w-auto px-6 py-3 font-semibold bg-green-600 hover:bg-green-700 text-white transition duration-200"
+              >
+                Tentar Novamente
+              </Button>
+            )}
+            
+            {/* CONTAINER PARA OS BOTÕES DISCRETOS (Flexível e Responsivo) */}
+            <div className="flex gap-4 justify-center flex-wrap">
+                {/* 2. BOTÃO VOLTAR (Discreto) */}
+                <Button
+                  onClick={handleGoBack}
+                  variant="link" // Estilo mais discreto (parece um link)
+                  className="text-gray-400 hover:text-white px-2 py-1 text-base font-normal"
+                >
+                  Voltar à Página Anterior
+                </Button>
 
-          {/* BOTÃO EXISTENTE: Ir para o Login (estilo discreto e reduzido) */}
-          <Button
-            onClick={handleGoHome}
-            // Mudei para 'ghost' ou 'link' para ser discreto.
-            variant="ghost" // Se 'Button' for do shadcn/ui
-            className="text-gray-400 hover:text-white hover:bg-transparent px-4 py-2 text-base"
-          >
-            Voltar ao Login
-          </Button>
+                {/* 3. BOTÃO IR PARA O LOGIN (Discreto) */}
+                <Button
+                  onClick={handleGoHome}
+                  variant="link" // Estilo mais discreto (parece um link)
+                  className="text-gray-400 hover:text-white px-2 py-1 text-base font-normal"
+                >
+                  Voltar ao Login
+                </Button>
+            </div>
         </motion.div>
       </motion.div>
     </div>
