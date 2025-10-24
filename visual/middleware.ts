@@ -1,42 +1,67 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Rotas públicas (onde utilizador logado não deve entrar)
 const PUBLIC_ROUTES = ["/login", "/register", "/esqueceu-senha", "/reset-password"];
 
-// Rotas protegidas (só acessíveis com token)
-const PROTECTED_ROUTES_PATTERNS = [
-  "/dashboard",
-  "/profile",
-  "/configuracoes",
-  // podes adicionar mais rotas aqui
-];
+// Regras por role
+const ROLE_RULES: Record<string, string[]> = {
+  administrador: ["/dashboard/admin", "/dashboard/gerente", "/dashboard/funcionario"],
+  gerente: ["/dashboard/gerente"],
+  funcionario: ["/dashboard/funcionario"],
+};
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("token");
+  const token = request.cookies.get("token")?.value || null;
+  const role = request.cookies.get("role")?.value || null;
   const pathname = request.nextUrl.pathname;
 
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-  const isProtectedRoute = PROTECTED_ROUTES_PATTERNS.some((pattern) =>
-    pathname.startsWith(pattern)
-  );
+  const isPublic = PUBLIC_ROUTES.includes(pathname);
+  const isDashboard = pathname.startsWith("/dashboard");
 
-  // Se tem token e tenta aceder rota pública → redireciona para dashboard
-  if (token && isPublicRoute) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  // Se rota é protegida e não tem token → redireciona para login
-  if (isProtectedRoute && !token) {
+  // 1) Sem token tentando acessar rota protegida → Login
+  if (!token && isDashboard) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Rota inicial `/` → vai sempre para login se não tiver token
-  if (pathname === "/" && !token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  // 2) Logado tentando acessar rota pública → Redireciona para o dashboard do seu role
+  if (token && isPublic) {
+    const redirect = getDashboardRedirect(role);
+    return NextResponse.redirect(new URL(redirect, request.url));
+  }
+
+  // 3) Verificar se o role pode acessar a rota
+  if (token && role && isDashboard) {
+    const allowedRoutes = ROLE_RULES[role];
+
+    // Nenhuma regra encontrada = bloqueia
+    if (!allowedRoutes) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    // Se a rota não está permitida para esse role → Redireciona para o dashboard dele
+    const isAllowed = allowedRoutes.some((r) => pathname.startsWith(r));
+
+    if (!isAllowed) {
+      const redirect = getDashboardRedirect(role);
+      return NextResponse.redirect(new URL(redirect, request.url));
+    }
   }
 
   return NextResponse.next();
+}
+
+// Função para enviar cada role para seu dashboard correto
+function getDashboardRedirect(role: string | null) {
+  switch (role) {
+    case "administrador":
+      return "/dashboard/admin";
+    case "gerente":
+      return "/dashboard/gerente";
+    case "funcionario":
+      return "/dashboard/funcionario";
+    default:
+      return "/login";
+  }
 }
 
 export const config = {
