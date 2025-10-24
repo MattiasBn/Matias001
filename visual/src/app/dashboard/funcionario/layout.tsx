@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/sidebar";
@@ -11,13 +11,19 @@ export default function FuncionarioLayout({ children }: { children: React.ReactN
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  if (!loading && !user) {
-    router.replace("/login");
-    return null;
-  }
+  // ✅ Redirecionamento seguro
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.replace("/login");
+      } else if (user.role !== "funcionario") {
+        router.replace("/dashboard");
+      }
+    }
+  }, [loading, user, router]);
 
-  if (!loading && user && user.role !== "funcionario") {
-    router.replace("/dashboard");
+  // ✅ Evita renderizar enquanto carrega ou durante o redirecionamento
+  if (loading || !user || user.role !== "funcionario") {
     return null;
   }
 
@@ -27,7 +33,9 @@ export default function FuncionarioLayout({ children }: { children: React.ReactN
 
       <div className="flex-1 flex flex-col">
         <Header title="Painel do Funcionário" onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-950">{children}</main>
+        <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-950">
+          {children}
+        </main>
       </div>
     </div>
   );
