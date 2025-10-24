@@ -25,6 +25,7 @@ Route::get('/auth/social/temp/{key}', function ($key) {
 Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
 
+Route::middleware('auth:sanctum')->post('/register/complete', [AuthController::class, 'completeRegistration']);
 
  Route::post('/login', [AuthController::class, 'login']);
 

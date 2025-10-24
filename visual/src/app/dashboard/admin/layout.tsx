@@ -11,7 +11,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  // proteção simples (mantém o teu padrão)
   if (!loading && !user) {
     router.replace("/login");
     return null;
@@ -27,10 +26,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-950">
-          {children}
-        </main>
+        <Header title="Painel do Administrador"onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-950">{children}</main>
       </div>
     </div>
   );

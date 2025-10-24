@@ -243,6 +243,48 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
         return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
+
+
+        
+        // Se já existe mas não foi confirmado → bloquear
+        if (!$user->confirmar) {
+            return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=not_confirmed');
+        }
+
+        // Usuário existente e confirmado → redireciona para callback normal
+        return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
+
+
+        
+
     }
+
+  /**
+
+    * Completar registro (telefone + senha)
+     * - Rota protegida auth:sanctum
+     * - Mantém confirmar = false (admin precisa aprovar)
+     */
+    public function completeRegistration(Request $request)
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        $request->validate([
+            'telefone' => 'required|string|max:20|unique:users,telefone,' . $user->id,
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user->telefone = $request->input('telefone');
+        $user->password = Hash::make($request->input('password'));
+        // mantém confirmar = false para aprovação manual
+        $user->save();
+
+        return response()->json([
+            'message' => 'Registro completo. Aguarde aprovação do administrador.',
+            'user' => $user,
+        ], 200);
+    }
+
  
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/Header";
 
-export default function GerenteLayout({ children }: { children: React.ReactNode }) {
+export default function FuncionarioLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function GerenteLayout({ children }: { children: React.ReactNode 
     return null;
   }
 
-  if (!loading && user && user.role !== "gerente") {
+  if (!loading && user && user.role !== "funcionario") {
     router.replace("/dashboard");
     return null;
   }
@@ -26,7 +26,7 @@ export default function GerenteLayout({ children }: { children: React.ReactNode 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col">
-        <Header title="Painel do Gerente" onMenuClick={() => setSidebarOpen(true)} />
+        <Header title="Painel do Funcionário" onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-950">{children}</main>
       </div>
     </div>

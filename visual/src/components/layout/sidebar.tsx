@@ -1,11 +1,13 @@
+// src/components/layout/Sidebar.tsx
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Layers, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { menuItems, type MenuItem } from "@/components/layout/menuRoles";
+import { X } from "lucide-react";
 
 interface SidebarProps {
   open?: boolean;
@@ -14,38 +16,39 @@ interface SidebarProps {
 
 export default function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
-  const links = [
-    { href: "/dashboard/admin", label: "Início", icon: Home },
-    { href: "/dashboard/admin/usuarios", label: "Usuários", icon: Users },
-    { href: "/dashboard/admin/niveis", label: "Níveis", icon: Layers },
-  ];
+  // role em lowercase e fallback para 'funcionario' para evitar undefined
+  const role = (user?.role ?? "funcionario").toLowerCase() as keyof typeof menuItems;
+  const links: MenuItem[] = menuItems[role] ?? menuItems.funcionario;
 
   const isActive = (href: string) =>
     pathname === href || pathname?.startsWith(href + "/");
 
   return (
     <>
-      {/* Desktop sidebar (always visible on md+) */}
+      {/* Desktop sidebar (md+) */}
       <aside className="hidden md:flex md:w-64 md:flex-col bg-white dark:bg-gray-900 border-r">
-        <div className="p-4 text-lg font-bold">Admin Panel</div>
+        <div className="p-4 text-lg font-bold capitalize">Painel {role}</div>
 
         <nav className="flex-1 p-4 space-y-2">
-          {links.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className="block">
-              <div
-                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer ${
-                  isActive(href)
-                    ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-800"
-                }`}
-              >
-                <Icon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                <span>{label}</span>
-              </div>
-            </Link>
-          ))}
+          {links.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href} className="block">
+                <div
+                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer ${
+                    isActive(item.href)
+                      ? "bg-gray-100 dark:bg-gray-800 font-medium"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                  <span>{item.label}</span>
+                </div>
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4">
@@ -79,27 +82,30 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
               className="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-gray-900 shadow-lg p-4"
             >
               <div className="flex items-center justify-between mb-6">
-                <div className="text-lg font-bold">Admin Panel</div>
+                <div className="text-lg font-bold capitalize">Painel {role}</div>
                 <Button size="icon" variant="ghost" onClick={onClose}>
                   <X className="h-5 w-5" />
                 </Button>
               </div>
 
               <nav className="flex flex-col gap-2">
-                {links.map(({ href, label, icon: Icon }) => (
-                  <Link key={href} href={href} onClick={onClose}>
-                    <div
-                      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer ${
-                        isActive(href)
-                          ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                      <span>{label}</span>
-                    </div>
-                  </Link>
-                ))}
+                {links.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.href} href={item.href} onClick={onClose}>
+                      <div
+                        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer ${
+                          isActive(item.href)
+                            ? "bg-gray-100 dark:bg-gray-800 font-medium"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                        <span>{item.label}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
               </nav>
 
               <div className="mt-6">
