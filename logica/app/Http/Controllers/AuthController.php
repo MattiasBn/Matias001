@@ -204,14 +204,12 @@ class AuthController extends Controller
     public function redirectToGoogleWeb(Request $request)
 {
     $action = $request->query('action', 'login'); // login é default
-    // armazena na query para callback
-    $redirectUrl = Socialite::driver('google')
-        ->stateless()
-        ->redirect()
-        ->getTargetUrl() . '&state=' . $action;
 
-    return $redirectUrl;
+    $driver = Socialite::driver('google')->stateless()->with(['state' => $action]);
+
+    return $driver->redirect(); // redireciona de verdade para o Google
 }
+
 
     public function handleGoogleCallbackWeb(Request $request)
 {
@@ -252,10 +250,11 @@ class AuthController extends Controller
     }
 
     // gera token para login normal
-    $user->tokens()->delete();
-    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+   $user->tokens()->delete();
+$token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-    return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
+return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
+
 }
 
   /**
