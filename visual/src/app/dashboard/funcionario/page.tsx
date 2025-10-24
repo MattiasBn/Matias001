@@ -1,4 +1,4 @@
-export default function AdminPage() {
+export default function FuncionarioPage() {
   return <div><h1>Bem-vindo ao painel do funcionario ou painel do admin enfim </h1>
   
             <h2> entao se voce chegou ate aqui e porq a tua conta foi confirmada , <br>
