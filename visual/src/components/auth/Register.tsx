@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, LogIn } from "lucide-react";
+import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle} from "lucide-react";
 import api from "@/lib/api";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
@@ -74,7 +74,8 @@ export default function Register() {
 
   // botão registrar com google (igual estilo do login)
   const handleGoogleRegister = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
+    //window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?action=register`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

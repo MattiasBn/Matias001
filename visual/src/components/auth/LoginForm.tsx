@@ -119,7 +119,8 @@ export function LoginForm() {
   // NOVO - handleGoogleLogin (redireciona direto para o backend)
   const handleGoogleLogin = () => {
     // usa NEXT_PUBLIC_API_URL sem /api porque o Laravel está nas rotas web
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
+   // window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
+   window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?action=login`;
   };
 
   return (

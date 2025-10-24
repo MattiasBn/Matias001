@@ -201,63 +201,62 @@ class AuthController extends Controller
  * -/**
  * Redireciona para o Google (web flow)
  */
-
-  public function redirectToGoogleWeb()
+    public function redirectToGoogleWeb(Request $request)
 {
-    return Socialite::driver('google')
+    $action = $request->query('action', 'login'); // login é default
+    // armazena na query para callback
+    $redirectUrl = Socialite::driver('google')
         ->stateless()
-        ->redirect();
+        ->redirect()
+        ->getTargetUrl() . '&state=' . $action;
+
+    return $redirectUrl;
 }
 
+    public function handleGoogleCallbackWeb(Request $request)
+{
+    try {
+        $provider = Socialite::driver('google');
+        $googleUser = $provider->stateless()->user();
+    } catch (\Exception $e) {
+        return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
+    }
 
-    public function handleGoogleCallbackWeb()
-    {
-        try {
-            $provider = Socialite::driver('google');
-            $googleUser = $provider->stateless()->user();
-        } catch (\Exception $e) {
-            return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
-        }
+    $action = $request->input('state', 'login'); // vem da query param
 
-        $user = User::where('email', $googleUser->getEmail())->first();
+    $user = User::where('email', $googleUser->getEmail())->first();
 
-        if (!$user) {
-            $user = User::create([
-                'name'      => $googleUser->getName(),
-                'email'     => $googleUser->getEmail(),
-                'google_id' => $googleUser->getId(),
-                'photo'     => $googleUser->getAvatar(),
-                'password'  => Hash::make(Str::random(40)),
-                'role'      => 'funcionario',
-                'confirmar' => false,
-            ]);
-        } else {
-            $updated = false;
-            if (!$user->google_id) { $user->google_id = $googleUser->getId(); $updated = true; }
-            if (!$user->photo && $googleUser->getAvatar()) { $user->photo = $googleUser->getAvatar(); $updated = true; }
-            if ($updated) $user->save();
-        }
+    if ($action === 'register' && !$user) {
+        $user = User::create([
+            'name'      => $googleUser->getName(),
+            'email'     => $googleUser->getEmail(),
+            'google_id' => $googleUser->getId(),
+            'photo'     => $googleUser->getAvatar(),
+            'password'  => Hash::make(Str::random(40)),
+            'role'      => 'funcionario',
+            'confirmar' => false,
+        ]);
 
-        // Revoga tokens antigos e gera um novo
-        $user->tokens()->delete();
+        // redireciona para completar registro
         $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+        return redirect()->away(env('APP_FRONTEND_URL') . '/completar-registro?token=' . $token);
+    }
 
-        return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
-
-
-        
-        // Se já existe mas não foi confirmado → bloquear
+    if ($action === 'login') {
+        if (!$user) {
+            return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=user_not_found');
+        }
         if (!$user->confirmar) {
             return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=not_confirmed');
         }
-
-        // Usuário existente e confirmado → redireciona para callback normal
-        return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
-
-
-        
-
     }
+
+    // gera token para login normal
+    $user->tokens()->delete();
+    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+    return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
+}
 
   /**
 
