@@ -101,16 +101,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       switch (userData.role) {
         case "administrador":
-          router.push("/dashboard/admin");
+         return  router.push("/dashboard/admin");
           break;
         case "funcionario":
-          router.push("/dashboard/funcionario");
+           return  router.push("/dashboard/funcionario");
           break;
         case "gerente":
-          router.push("/dashboard/gerente");
-          break;
+            return   router.push("/dashboard/gerente");
+        break;
         default:
-          router.push("/dashboard");
+         return   router.push("/dashboard");
       }
     },
     [cookies, router]
