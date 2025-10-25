@@ -204,8 +204,9 @@ class AuthController extends Controller
 
   public function redirectToGoogleWeb()
 {
-    return Socialite::driver('google')
+   return Socialite::driver('google')
         ->stateless()
+        ->with(['prompt' => 'select_account']) // 🎯 A CHAVE DA SOLUÇÃO
         ->redirect();
 }
 
@@ -219,45 +220,41 @@ class AuthController extends Controller
             return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
         }
 
-        $user = User::where('email', $googleUser->getEmail())->first();
+       $user = User::where('email', $googleUser->getEmail())->first();
+    $isNewUser = false;
 
-        if (!$user) {
-            $user = User::create([
-                'name'      => $googleUser->getName(),
-                'email'     => $googleUser->getEmail(),
-                'google_id' => $googleUser->getId(),
-                'photo'     => $googleUser->getAvatar(),
-                'password'  => Hash::make(Str::random(40)),
-                'role'      => 'funcionario',
-                'confirmar' => false,
-            ]);
-        } else {
-            $updated = false;
-            if (!$user->google_id) { $user->google_id = $googleUser->getId(); $updated = true; }
-            if (!$user->photo && $googleUser->getAvatar()) { $user->photo = $googleUser->getAvatar(); $updated = true; }
-            if ($updated) $user->save();
-        }
-
-        // Revoga tokens antigos e gera um novo
-        $user->tokens()->delete();
-        $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-        return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
-
-
-        
-        // Se já existe mas não foi confirmado → bloquear
-        if (!$user->confirmar) {
-            return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=not_confirmed');
-        }
-
-        // Usuário existente e confirmado → redireciona para callback normal
-        return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
-
-
-        
-
+    if (!$user) {
+        $isNewUser = true;
+        $user = User::create([
+            'name'      => $googleUser->getName(),
+            'email'     => $googleUser->getEmail(),
+            'google_id' => $googleUser->getId(),
+            'photo'     => $googleUser->getAvatar(),
+            // 🛑 MANTENHA A SENHA ALEATÓRIA: Ela será definida no frontend
+            'password'  => Hash::make(Str::random(40)), 
+            'role'      => 'funcionario',
+            'confirmar' => false, // O administrador fará a confirmação
+        ]);
+    } else {
+        // ... (sua lógica para atualizar google_id/photo) ...
+        $user->save();
     }
+
+    // Revoga tokens antigos e gera um novo
+    $user->tokens()->delete();
+    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+    // 🎯 NOVO FLUXO: Se for um novo usuário OU um usuário não confirmado (mas já existe)
+    if ($isNewUser || !$user->confirmar || !$user->telefone) {
+        // Redireciona para uma rota de complemento no frontend, passando o token.
+        // O frontend usará este token temporário para preencher os dados.
+        return redirect()->away(env('APP_FRONTEND_URL') . '/completar-registro?token=' . $token);
+    }
+    
+    // Se o usuário já existe, está confirmado e tem os dados (login normal)
+    return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
+}
+    
 
   /**
 
