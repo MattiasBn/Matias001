@@ -201,61 +201,66 @@ class AuthController extends Controller
  * -/**
  * Redireciona para o Google (web flow)
  */
-
-  public function redirectToGoogleWeb()
+public function redirectToGoogleLogin()
 {
-   return Socialite::driver('google')
-        ->stateless()
-        ->with(['prompt' => 'select_account']) // 🎯 A CHAVE DA SOLUÇÃO
+    // O Google tentará logar automaticamente com a sessão existente.
+    return Socialite::driver('google')
+        ->stateless() // 👈 Essencial se não usar sessões
         ->redirect();
 }
 
-
-    public function handleGoogleCallbackWeb()
-    {
-        try {
-            $provider = Socialite::driver('google');
-            $googleUser = $provider->stateless()->user();
-        } catch (\Exception $e) {
-            return redirect()->away(env('APP_FRONTEND_URL') . '/login?error=google_callback');
-        }
-
-       $user = User::where('email', $googleUser->getEmail())->first();
-    $isNewUser = false;
-
-    if (!$user) {
-        $isNewUser = true;
-        $user = User::create([
-            'name'      => $googleUser->getName(),
-            'email'     => $googleUser->getEmail(),
-            'google_id' => $googleUser->getId(),
-            'photo'     => $googleUser->getAvatar(),
-            // 🛑 MANTENHA A SENHA ALEATÓRIA: Ela será definida no frontend
-            'password'  => Hash::make(Str::random(40)), 
-            'role'      => 'funcionario',
-            'confirmar' => false, // O administrador fará a confirmação
-        ]);
-    } else {
-        // ... (sua lógica para atualizar google_id/photo) ...
-        $user->save();
-    }
-
-    // Revoga tokens antigos e gera um novo
-    $user->tokens()->delete();
-    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-    // 🎯 NOVO FLUXO: Se for um novo usuário OU um usuário não confirmado (mas já existe)
-    if ($isNewUser || !$user->confirmar || !$user->telefone) {
-        // Redireciona para uma rota de complemento no frontend, passando o token.
-        // O frontend usará este token temporário para preencher os dados.
-        return redirect()->away(env('APP_FRONTEND_URL') . '/completar-registro?token=' . $token);
-    }
-    
-    // Se o usuário já existe, está confirmado e tem os dados (login normal)
-    return redirect()->away(env('APP_FRONTEND_URL') . '/auth/callback?token=' . $token);
+// Funcao de Redirecionamento para REGISTRO (Força a seleção de conta/permissões)
+public function redirectToGoogleRegister()
+{
+    // Força o Google a mostrar a tela de seleção de conta/permissões.
+    return Socialite::driver('google')
+        ->stateless() // 👈 Essencial se não usar sessões
+        ->with(['prompt' => 'select_account'])
+        ->redirect();
 }
-    
+// ... (código anterior do controller)
 
+// 3. Função de CALLBACK (Lida com a resposta do Google)
+public function handleGoogleCallbackWeb()
+{
+    $socialiteUser = Socialite::driver('google')->stateless()->user();
+    
+    // Tenta encontrar o usuário pelo e-mail
+    $user = User::where('email', $socialiteUser->getEmail())->first();
+
+    // ✅ CORREÇÃO: Usar a variável de ambiente corretamente
+    $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com'); 
+    
+    // --- Lógica para NOVO REGISTRO ---
+    if (!$user) {
+        // Cria o usuário com o status inicial
+        $user = User::create([
+            'email' => $socialiteUser->getEmail(),
+            'name' => $socialiteUser->getName(),
+            'google_id' => $socialiteUser->getId(),
+            'password' => null, 
+            'confirmar' => false, // Aguardando confirmação do admin
+        ]);
+
+        // Gera um token TEMPORÁRIO 
+        $token = $user->createToken('registo_token', ['completar-registo'], now()->addMinutes(30))->plainTextToken;
+
+        // 🚨 REDIRECIONAMENTO FINAL COM A ROTA CORRETA DO FRONTEND
+        // Rota: /completar-registo
+        // Parâmetro: must_complete_registration (usando snake_case, que é mais comum, mas ajustado para pt)
+        return redirect()->away("{$frontendUrl}/completar-registo?token={$token}&must_completar_registo=true");
+    }
+
+    // --- Lógica para LOGIN de Usuário Existente ---
+    if ($user->confirmar == false) {
+        return redirect()->away("{$frontendUrl}/login?error=aguardando_aprovacao");
+    }
+
+    // Login bem-sucedido (Usuário Confirmado)
+    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+    
+    return redirect()->away("{$frontendUrl}/login?token={$token}#login_success");
+}
   /**
 
     * Completar registro (telefone + senha)
