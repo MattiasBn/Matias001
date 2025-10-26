@@ -158,7 +158,7 @@ export default function Register() {
             {/* MODIFICAÇÃO SOLICITADA: Adicionar o Logo da Matias Sistemas */}
             <div className="flex justify-center mb-4">
               <Image 
-                src="/images/MatiasSistemas.png" 
+                src="/images/MatiaSistemas.png" 
                 alt="Logo Matias Sistemas" 
                 width={150} // Ajuste o tamanho conforme sua necessidade
                 height={150}
@@ -192,7 +192,7 @@ export default function Register() {
                             height={16}
                             className="h-4 w-4"
                         />
-                        <span>Registar-se com Google</span>
+                        <span>Registar com a minha conta Google</span>
                     </span>
                 )}
             </Button>

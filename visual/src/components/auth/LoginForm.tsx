@@ -137,7 +137,7 @@ export function LoginForm() {
             
             <div className="flex justify-center mb-4">
               <Image 
-                src="/images/MatiasSistemas.png" 
+                src="/images/MatiaSistemas.png" 
                 alt="Logo Matias Sistemas" 
                 width={150} 
                 height={150}
