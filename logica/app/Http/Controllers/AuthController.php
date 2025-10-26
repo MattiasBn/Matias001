@@ -214,7 +214,7 @@ public function redirectToGoogleRegister()
 {
     return Socialite::driver('google')
         ->stateless()
-        ->with(['prompt' => 'select_account consent']) // 👈 sempre mostra a escolha
+        // 👈 sempre mostra a escolha
         ->redirect();
 }
 
