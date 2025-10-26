@@ -268,7 +268,9 @@ public function redirectToGoogleWeb()
     // ✅ login autorizado → cria token principal
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-    return redirect()->away("{$frontendUrl}/login?token={$token}#login_success");
+return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
+
+ //   return redirect()->away("{$frontendUrl}/login?token={$token}#login_success");
 }
 
   /**

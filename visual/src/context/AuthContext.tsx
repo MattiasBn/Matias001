@@ -22,7 +22,7 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   fetchLoggedUser: () => Promise<void>;
-  loginWithGoogle: () => Promise<void>; // ✅ ADICIONADO
+  loginWithGoogle: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -74,6 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = response.data.user;
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
+
+      // ✅ REDIRECIONAR APÓS OBTER USER (GOOGLE LOGIN)
+      switch (userData.role) {
+        case "administrador":
+          router.replace("/dashboard/admin");
+          break;
+        case "funcionario":
+          router.replace("/dashboard/funcionario");
+          break;
+        case "gerente":
+          router.replace("/dashboard/gerente");
+          break;
+        default:
+          router.replace("/dashboard");
+      }
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 401) {
         cookies.remove("token", { path: "/" });
@@ -83,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setApiToken(null);
       }
     }
-  }, [cookies]);
+  }, [cookies, router]);
 
   const login = useCallback(
     (token: string, userData: User) => {
@@ -101,16 +116,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       switch (userData.role) {
         case "administrador":
-         return  router.push("/dashboard/admin");
-          break;
+          return router.push("/dashboard/admin");
         case "funcionario":
-           return  router.push("/dashboard/funcionario");
-          break;
+          return router.push("/dashboard/funcionario");
         case "gerente":
-            return   router.push("/dashboard/gerente");
-        break;
+          return router.push("/dashboard/gerente");
         default:
-         return   router.push("/dashboard");
+          return router.push("/dashboard");
       }
     },
     [cookies, router]
@@ -139,7 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [cookies, router]);
 
-  // ✅ NOVA FUNÇÃO DO GOOGLE
   const loginWithGoogle = useCallback(async () => {
     try {
       const response = await api.get("/auth/google/web/redirect");
@@ -151,6 +162,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ✅ CAPTURAR TOKEN DO GOOGLE APÓS CALLBACK//
+useEffect(() => {
+  const handleGoogleLogin = async () => {
+    const url = new URL(window.location.href);
+    const tokenFromGoogle = url.searchParams.get("token");
+
+    if (tokenFromGoogle) {
+      localStorage.setItem("token", tokenFromGoogle);
+      cookies.set("token", tokenFromGoogle, { path: "/" });
+      setApiToken(tokenFromGoogle);
+
+      await fetchLoggedUser();
+      router.replace("/"); // limpa a URL
+    }
+  };
+
+  handleGoogleLogin();
+}, []); // ✅ agora sem warnings e sem dependências
+
+
+  // ✅ VERIFICAR TOKEN NORMAL AO CARREGAR
   useEffect(() => {
     const tokenFromStorage = normalizeStoredToken(
       localStorage.getItem("token") || cookies.get("token")
@@ -180,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         loading,
         fetchLoggedUser,
-        loginWithGoogle, // ✅ ADICIONADO
+        loginWithGoogle,
       }}
     >
       {children}
