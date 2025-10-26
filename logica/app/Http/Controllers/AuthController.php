@@ -204,7 +204,7 @@ class AuthController extends Controller
 {
     return Socialite::driver('google')
         ->stateless()
-        ->with(['prompt' => 'none']) // 👈 Google tenta logar sem perguntar conta
+        // 👈 Google tenta logar sem perguntar conta
         ->redirect();
 }
 
