@@ -17,13 +17,21 @@ const SISTEMA_URL = "https://sismatias.onrender.com";
 
 export const metadata: Metadata = {
   // Configurações Básicas de SEO
-  title: "Matias Sistemas | Sistema de Gestão Empresarial",
+  title: "Matias Sistemas | Sistemas Empresarial",
   description: "A solução completa para gestão de estoque, finanças, vendas e automação de processos. Gerencie seu negócio de forma eficiente e inteligente.",
   
   // URL canônica do seu site
   metadataBase: new URL(SISTEMA_URL), 
   
-  // 1. Configuração do Open Graph (OG - Para WhatsApp, Facebook, Telegram, etc.)
+  // 1. Configuração do Favicon/Ícones (LOGO NA ABA)
+  icons: {
+    // ✅ Caminho para o seu PNG na pasta public/images/
+    icon: '/images/MatiasSistemas.png', 
+    shortcut: '/images/MatiasSistemas.png',
+    // Se tiver um ícone apple, você pode usar um nome como '/images/apple-icon.png'
+  },
+  
+  // 2. Configuração do Open Graph (OG - Para WhatsApp, Facebook, Telegram, etc.)
   openGraph: {
     title: 'Matias Sistemas | Gestão Eficiente',
     description: 'Sistema completo para gestão de estoque, finanças e automação de vendas. Aumente a produtividade do seu negócio.',
@@ -43,7 +51,7 @@ export const metadata: Metadata = {
     type: 'website',
   },
 
-  // 2. Configuração do Twitter Card (Para Twitter/X)
+  // 3. Configuração do Twitter Card (Para Twitter/X)
   twitter: {
     card: 'summary_large_image', // Usar a imagem grande para destaque
     title: 'Matias Sistemas | Gestão',
@@ -57,7 +65,6 @@ export const metadata: Metadata = {
   keywords: ["sistema de gestão", "software erp", "gestão de estoque", "automação de vendas"],
 
 };
-
 
 export default function RootLayout({
   children,
