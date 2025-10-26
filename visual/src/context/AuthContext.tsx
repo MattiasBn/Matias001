@@ -143,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {}
     finally {
       cookies.remove("token", { path: "/" });
+      cookies.remove("user_role", { path: "/" });
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       setUser(null);

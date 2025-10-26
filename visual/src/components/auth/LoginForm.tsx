@@ -18,8 +18,11 @@ import ButtonLoader from "@/components/animacao/buttonLoader";
 import api from "@/lib/api";
 import { AxiosError } from "axios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AtSign, Lock, LogIn, Eye, EyeOff } from "lucide-react";
+import { AtSign, Lock, LogIn, Eye, EyeOff, Info } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+// Componentes do shadcn/ui para o Tooltip (Você deve instalá-los)
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
+import Image from "next/image"; // Componente Image do Next.js
 
 interface LoginResponse {
   token?: string;
@@ -53,6 +56,7 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false); 
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -115,9 +119,8 @@ export function LoginForm() {
     }
   };
 
-  // NOVO - handleGoogleLogin (redireciona direto para o backend)
   const handleGoogleLogin = () => {
-    // usa NEXT_PUBLIC_API_URL sem /api porque o Laravel está nas rotas web
+    setIsGoogleLoading(true); 
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
   };
 
@@ -131,6 +134,17 @@ export function LoginForm() {
       >
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="p-4 sm:p-6 pb-2">
+            
+            <div className="flex justify-center mb-4">
+              <Image 
+                src="/images/MatiasSistemas.png" 
+                alt="Logo Matias Sistemas" 
+                width={150} 
+                height={150}
+                className="rounded-lg"
+              />
+            </div>
+            
             <CardTitle className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-white">
               Entrar na sua Conta
             </CardTitle>
@@ -148,6 +162,17 @@ export function LoginForm() {
                   className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base"
                 >
                   <AtSign className="mr-2 h-4 w-4" /> Email
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>O seu endereço de e-mail de acesso.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <Input
                   id="email"
@@ -166,6 +191,17 @@ export function LoginForm() {
                   className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base"
                 >
                   <Lock className="mr-2 h-4 w-4" /> Senha
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>A sua senha pessoal e secreta.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <div className="relative">
                   <Input
@@ -198,8 +234,8 @@ export function LoginForm() {
                 </Alert>
               )}
 
-              {/* Botão */}
-              <Button className="w-full" type="submit" disabled={isLoading}>
+              {/* Botão de Login com Email/Senha */}
+              <Button className="w-full" type="submit" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? (
                   <span className="flex items-center justify-center space-x-2">
                     <ButtonLoader /> <span>Entrando...</span>
@@ -212,14 +248,31 @@ export function LoginForm() {
               </Button>
             </form>
 
-            {/* Botão Google (mesmo estilo, sem cor vermelha) */}
-            <Button variant="outline" className="w-full mt-3" onClick={handleGoogleLogin}>
-              <span className="flex items-center justify-center space-x-2">
-                <img src="https://www.google.com/favicon.ico" className="h-4 w-4" />
-                <span>Entrar com Google</span>
-              </span>
+            {/* Botão Google - CORREÇÃO DA IMAGEM */}
+            <Button 
+              variant="outline" 
+              className="w-full mt-3" 
+              onClick={handleGoogleLogin} 
+              disabled={isLoading || isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <ButtonLoader /> <span>Entrando ao processar...</span>
+                </span>
+              ) : (
+                <span className="flex items-center justify-center space-x-2">
+                  <Image // MODIFICAÇÃO: Usando o componente Image
+                    src="https://www.google.com/favicon.ico" 
+                    alt="Google Logo" 
+                    width={16} 
+                    height={16}
+                    className="h-4 w-4" 
+                  />
+                  <span>Entrar com Google</span>
+                </span>
+              )}
             </Button>
-
+            
             <div className="mt-4 text-center">
               <Button variant="link" onClick={() => router.push("/esqueceu-senha")}>
                 Esqueceu a senha?

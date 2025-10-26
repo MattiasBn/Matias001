@@ -9,12 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle} from "lucide-react";
+// Ícones ajustados para Tooltip
+import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, Info, LogIn} from "lucide-react"; 
 import api from "@/lib/api";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
 import type { AxiosError } from "axios";
 import Image from 'next/image';
+
+// Componentes do shadcn/ui para o Tooltip (Você deve instalá-los)
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
 
 import "react-phone-input-2/lib/style.css";
 
@@ -51,6 +55,8 @@ export default function Register() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // MODIFICAÇÃO SOLICITADA: Novo estado para o loading do Google
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false); 
   const [showPassword, setShowPassword] = useState(false);
   const [isPasswordSecure, setIsPasswordSecure] = useState(false);
 
@@ -72,13 +78,14 @@ export default function Register() {
     setShowPassword(!showPassword);
   };
 
-  // botão registrar com google (igual estilo do login)
+  // MODIFICAÇÃO SOLICITADA: Adicionar loading ao botão Google
   const handleGoogleRegister = () => {
-   // window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
-   window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
-    
+    setIsGoogleLoading(true); // Inicia o loading
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
   };
+  // FIM MODIFICAÇÃO LOGICA
 
+  // LÓGICA DE SUBMISSÃO MANTIDA INTACTA
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -141,38 +148,74 @@ export default function Register() {
       setLoading(false);
     }
   };
+  // FIM LÓGICA DE SUBMISSÃO
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <motion.div initial="hidden" animate="visible" variants={formVariants} className="w-full max-w-md">
         <Card className="shadow-2xl rounded-xl">
           <CardHeader>
+            {/* MODIFICAÇÃO SOLICITADA: Adicionar o Logo da Matias Sistemas */}
+            <div className="flex justify-center mb-4">
+              <Image 
+                src="/images/MatiasSistemas.png" 
+                alt="Logo Matias Sistemas" 
+                width={150} // Ajuste o tamanho conforme sua necessidade
+                height={150}
+                className="rounded-lg"
+              />
+            </div>
+            {/* FIM MODIFICAÇÃO LOGO */}
+
             <CardTitle className="text-2xl font-bold text-center">Criar Conta</CardTitle>
             <CardDescription className="text-center">Preencha os dados abaixo para criar a sua conta.</CardDescription>
           </CardHeader>
+          
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-
-              {/* === Botão Google ACIMA do Registrar (mesmo estilo) === */}
-              <Button variant="outline" className="w-full flex items-center justify-center gap-2" onClick={handleGoogleRegister}>
-                <span className="flex items-center justify-center space-x-2">
-
-                              <Image
-                  src="https://www.google.com/favicon.ico"
-                  alt="Ícone do Google" // 👈 Obrigatório para acessibilidade
-                  width={16}           // 👈 Obrigatório para otimização (16px para h-4)
-                  height={16}          // 👈 Obrigatório para otimização (16px para w-4)
-                  className="h-4 w-4"
+            {/* MODIFICAÇÃO SOLICITADA: Botão Google com loading */}
+            <Button 
+                variant="outline" 
+                className="w-full flex items-center justify-center gap-2 mb-5" 
+                onClick={handleGoogleRegister}
+                disabled={loading || isGoogleLoading}
+            >
+                {isGoogleLoading ? (
+                    <span className="flex items-center justify-center space-x-2">
+                        <ButtonLoader /> <span>Entrando ao processar...</span> {/* MENSAGEM SOLICITADA */}
+                    </span>
+                ) : (
+                    <span className="flex items-center justify-center space-x-2">
+                        <Image
+                            src="https://www.google.com/favicon.ico"
+                            alt="Ícone do Google"
+                            width={16}
+                            height={16}
+                            className="h-4 w-4"
                         />
-                        <span>Registar se a com Google</span>
-                         </span>
-              </Button>
+                        <span>Registar-se com Google</span>
+                    </span>
+                )}
+            </Button>
+            {/* FIM MODIFICAÇÃO BOTÃO GOOGLE */}
 
-              {/* === CAMPOS ORIGINAIS (inalterados) === */}
 
+            <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {/* Nome */}
               <div>
                 <Label htmlFor="name" className="flex items-center gap-2">
                   <User className="h-4 w-4" /> Nome
+                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Seu nome completo para identificação no sistema.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <Input
                   id="name"
@@ -184,9 +227,21 @@ export default function Register() {
                 {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
               </div>
 
+              {/* Email */}
               <div>
                 <Label htmlFor="email" className="flex items-center gap-2">
                   <Mail className="h-4 w-4" /> Email
+                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Seu endereço de e-mail (será o seu login principal).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <Input
                   id="email"
@@ -199,9 +254,21 @@ export default function Register() {
                 {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
               </div>
 
+              {/* Telefone */}
               <div>
                 <Label htmlFor="telefone" className="flex items-center gap-2">
                   <Phone className="h-4 w-4" /> Telefone
+                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Seu número de telefone completo, incluindo o código do país.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <PhoneInput
                   country={"ao"}
@@ -217,9 +284,21 @@ export default function Register() {
                 {errors.telefone && <p className="text-red-500 text-sm mt-1">{errors.telefone}</p>}
               </div>
 
+              {/* Senha */}
               <div>
                 <Label htmlFor="password" className="flex items-center gap-2">
                   <Lock className="h-4 w-4" /> Senha
+                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Crie uma senha forte seguindo os critérios de segurança.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <div className="relative">
                   <Input
@@ -251,9 +330,21 @@ export default function Register() {
                 </p>
               </div>
 
+              {/* Confirmação de Senha */}
               <div>
                 <Label htmlFor="password_confirmation" className="flex items-center gap-2">
                   <Lock className="h-4 w-4" /> Confirmar Senha
+                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Confirme a senha para garantir que está correta.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <Input
                   id="password_confirmation"
@@ -280,7 +371,7 @@ export default function Register() {
                 </Alert>
               )}
 
-              <Button className="w-full" type="submit" disabled={loading}>
+              <Button className="w-full" type="submit" disabled={loading || isGoogleLoading}>
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <ButtonLoader /> Registrando...
