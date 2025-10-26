@@ -22,13 +22,9 @@ Route::get('/auth/social/temp/{key}', function ($key) {
     }
     return response()->json($data);
 });
-// 1. Rota para o botão "Entrar com Google" (Login)
-Route::get('/auth/google/login', [AuthController::class, 'redirectToGoogleLogin']);
 
-// 2. Rota para o botão "Registar com Google" (Registro)
-Route::get('/auth/google/register', [AuthController::class, 'redirectToGoogleRegister']);
-
-// 3. Rota de Callback (O Google redireciona SEMPRE para esta URL)
+//rotas do auth do google
+Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
 
 Route::middleware('auth:sanctum')->post('/completar-registo', [AuthController::class, 'completeRegistration']);

@@ -200,24 +200,11 @@ class AuthController extends Controller
  * - se novo: guarda dados temporários no cache e redireciona para front /complete-registration?social_key=...
  * -/**
  * Redireciona para o Google (web flow)
- */public function redirectToGoogleLogin()
+ */
+public function redirectToGoogleWeb()
 {
-    return Socialite::driver('google')
-        ->stateless()
-        // 👈 Google tenta logar sem perguntar conta
-        ->redirect();
+    return Socialite::driver('google')->stateless()->redirect();
 }
-
-
-// Funcao de Redirecionamento para REGISTRO (Força a seleção de conta/permissões)public function redirectToGoogleRegister()
-public function redirectToGoogleRegister()
-{
-    return Socialite::driver('google')
-        ->stateless()
-        // 👈 sempre mostra a escolha
-        ->redirect();
-}
-
 // ... (código anterior do controller)
 
 // 3. Função de CALLBACK (Lida com a resposta do Google)public function handleGoogleCallbackWeb(Request $request)
