@@ -200,67 +200,90 @@ class AuthController extends Controller
  * - se novo: guarda dados temporários no cache e redireciona para front /complete-registration?social_key=...
  * -/**
  * Redireciona para o Google (web flow)
- */
-public function redirectToGoogleLogin()
+ */public function redirectToGoogleLogin()
 {
-    // O Google tentará logar automaticamente com a sessão existente.
     return Socialite::driver('google')
-        ->stateless() // 👈 Essencial se não usar sessões
+        ->stateless()
+        ->with(['prompt' => 'none']) // 👈 Google tenta logar sem perguntar conta
         ->redirect();
 }
 
-// Funcao de Redirecionamento para REGISTRO (Força a seleção de conta/permissões)
+
+// Funcao de Redirecionamento para REGISTRO (Força a seleção de conta/permissões)public function redirectToGoogleRegister()
 public function redirectToGoogleRegister()
 {
-    // Força o Google a mostrar a tela de seleção de conta/permissões.
     return Socialite::driver('google')
-        ->stateless() // 👈 Essencial se não usar sessões
-        ->with(['prompt' => 'select_account'])
+        ->stateless()
+        ->with(['prompt' => 'select_account consent']) // 👈 sempre mostra a escolha
         ->redirect();
 }
+
 // ... (código anterior do controller)
 
-// 3. Função de CALLBACK (Lida com a resposta do Google)
-public function handleGoogleCallbackWeb()
-{
-    $socialiteUser = Socialite::driver('google')->stateless()->user();
-    
-    // Tenta encontrar o usuário pelo e-mail
+// 3. Função de CALLBACK (Lida com a resposta do Google)public function handleGoogleCallbackWeb(Request $request)
+  public function handleGoogleCallbackWeb(Request $request)  {
+    try {
+        $socialiteUser = Socialite::driver('google')->stateless()->user();
+    } catch (\Exception $e) {
+        return redirect()->away(env('FRONTEND_URL') . '/login?error=google_callback');
+    }
+
+    // ✅ pega ação enviada pela rota (login ou register)
+    $action = $request->query('state', 'login');
+
+    // ✅ FRONTEND URL
+    $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
+
+    // ✅ verifica se usuário existe
     $user = User::where('email', $socialiteUser->getEmail())->first();
 
-    // ✅ CORREÇÃO: Usar a variável de ambiente corretamente
-    $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com'); 
-    
-    // --- Lógica para NOVO REGISTRO ---
-    if (!$user) {
-        // Cria o usuário com o status inicial
+    /*
+    |--------------------------------------------------------------------------
+    | FLUXO: REGISTER (CRIAR NOVA CONTA)
+    |--------------------------------------------------------------------------
+    */
+    if ($action === 'register') {
+
+        // 🚨 se já existe, não deixa cadastrar de novo
+        if ($user) {
+            return redirect()->away("{$frontendUrl}/login?error=email_existente");
+        }
+
+        // cria usuário novo
         $user = User::create([
-            'email' => $socialiteUser->getEmail(),
-            'name' => $socialiteUser->getName(),
+            'email'     => $socialiteUser->getEmail(),
+            'name'      => $socialiteUser->getName(),
             'google_id' => $socialiteUser->getId(),
-            'password' => null, 
-            'confirmar' => false, // Aguardando confirmação do admin
+            'password'  => null,
+            'confirmar' => false,
+            'role'      => 'funcionario', // mantém tua lógica padrão
         ]);
 
-        // Gera um token TEMPORÁRIO 
+        // ✅ token temporário de completar cadastro
         $token = $user->createToken('registo_token', ['completar-registo'], now()->addMinutes(30))->plainTextToken;
 
-        // 🚨 REDIRECIONAMENTO FINAL COM A ROTA CORRETA DO FRONTEND
-        // Rota: /completar-registo
-        // Parâmetro: must_complete_registration (usando snake_case, que é mais comum, mas ajustado para pt)
         return redirect()->away("{$frontendUrl}/completar-registo?token={$token}&must_completar_registo=true");
     }
 
-    // --- Lógica para LOGIN de Usuário Existente ---
-    if ($user->confirmar == false) {
+    /*
+    |--------------------------------------------------------------------------
+    | FLUXO: LOGIN (USUÁRIO EXISTENTE)
+    |--------------------------------------------------------------------------
+    */
+    if (!$user) {
+        return redirect()->away("{$frontendUrl}/login?error=user_not_found");
+    }
+
+    if (!$user->confirmar) {
         return redirect()->away("{$frontendUrl}/login?error=aguardando_aprovacao");
     }
 
-    // Login bem-sucedido (Usuário Confirmado)
+    // ✅ login autorizado → cria token principal
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-    
+
     return redirect()->away("{$frontendUrl}/login?token={$token}#login_success");
 }
+
   /**
 
     * Completar registro (telefone + senha)
