@@ -1,8 +1,8 @@
 // src/components/auth/LoginForm.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react"; // 👈 Adicionado useEffect
+import { useRouter, useSearchParams } from "next/navigation"; // 👈 Adicionado useSearchParams
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -50,15 +50,58 @@ const formVariants: Variants = {
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // 👈 NOVO: Para ler parâmetros do URL
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false); // Para o loading do Google
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
+  // ----------------------------------------------
+  // NOVO: LÓGICA DE PROCESSAMENTO DO TOKEN/ERRO DO URL
+  // ----------------------------------------------
+  useEffect(() => {
+    const token = searchParams.get('token');
+    const authError = searchParams.get('error');
+
+    // 1. Tratamento de Erro (Aprovação Pendente do Admin)
+    if (authError === 'aguardando_aprovacao') {
+      setError("A sua conta existe, mas ainda não foi aprovada pelo administrador.");
+      
+      // Remove o 'error' do URL sem recarregar a página.
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.delete('error');
+      router.replace(`/login?${newSearchParams.toString()}`);
+      return;
+    }
+
+    // 2. Tratamento de Sucesso (Token Recebido)
+    if (token) {
+      if (typeof window !== 'undefined') {
+        // 🚨 CRUCIAL: Armazenar o token que o Laravel forneceu
+        // Use a mesma chave que o seu 'useAuth' espera para o login
+        localStorage.setItem('auth_token', token);
+        
+        // Se o seu contexto de autenticação precisar de dados do usuário (além do token),
+        // uma chamada adicional à API (ex: GET /api/user) seria necessária aqui.
+        // Assumindo que o Next.js lida com isso após o redirecionamento:
+      }
+
+      // Remove o 'token' e o 'hash' do URL antes de redirecionar.
+      // Substitui o histórico atual pela URL limpa e depois redireciona para o dashboard.
+      router.replace('/dashboard');
+      
+      return;
+    }
+  }, [searchParams, router]); // Dependências: Roda sempre que o URL muda
+
+  // ----------------------------------------------
+  // LÓGICA DE LOGIN COM EMAIL/SENHA (Original)
+  // ----------------------------------------------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -116,12 +159,14 @@ export function LoginForm() {
     }
   };
 
-  // NOVO - handleGoogleLogin (redireciona direto para o backend)
+  // ----------------------------------------------
+  // NOVO: LÓGICA DE LOGIN COM GOOGLE
+  // ----------------------------------------------
   const handleGoogleLogin = () => {
-    // usa NEXT_PUBLIC_API_URL sem /api porque o Laravel está nas rotas web
-   // window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
-   window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/login`;
-   
+    setIsGoogleLoading(true);
+    // Redireciona para o endpoint de login do Laravel
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/login`;
+    // O isGoogleLoading será desativado após o retorno do callback.
   };
 
   return (
@@ -201,8 +246,8 @@ export function LoginForm() {
                 </Alert>
               )}
 
-              {/* Botão */}
-              <Button className="w-full" type="submit" disabled={isLoading}>
+              {/* Botão de Login Tradicional */}
+              <Button className="w-full" type="submit" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? (
                   <span className="flex items-center justify-center space-x-2">
                     <ButtonLoader /> <span>Entrando...</span>
@@ -215,19 +260,36 @@ export function LoginForm() {
               </Button>
             </form>
 
-            {/* Botão Google (mesmo estilo, sem cor vermelha) */}
-            <Button variant="outline" className="w-full mt-3" onClick={handleGoogleLogin}>
-              <span className="flex items-center justify-center space-x-2">
+            {/* Separador */}
+            <div className="flex items-center my-4">
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
+                <span className="flex-shrink mx-4 text-gray-500 dark:text-gray-400 text-sm">OU</span>
+                <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
+            </div>
 
-                 <Image
-                  src="https://www.google.com/favicon.ico"
-                  alt="Ícone do Google" // 👈 Obrigatório para acessibilidade
-                  width={16}           // 👈 Obrigatório para otimização (16px para h-4)
-                  height={16}          // 👈 Obrigatório para otimização (16px para w-4)
-                  className="h-4 w-4"
-                />
-                <span>Entrar com Google</span>
-              </span>
+            {/* ✅ NOVO - Botão Google */}
+            <Button 
+                variant="outline" 
+                className="w-full dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white" 
+                onClick={handleGoogleLogin}
+                disabled={isLoading || isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                  <span className="flex items-center justify-center space-x-2">
+                    <ButtonLoader /> <span>Redirecionando...</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center space-x-2">
+                    <Image
+                      src="https://www.google.com/favicon.ico"
+                      alt="Ícone do Google"
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 mr-2"
+                    />
+                    <span>Entrar com Google</span>
+                  </span>
+                )}
             </Button>
 
             <div className="mt-4 text-center">
