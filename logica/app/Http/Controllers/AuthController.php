@@ -202,99 +202,83 @@ class AuthController extends Controller
  * Redireciona para o Google (web flow)
  */
 public function redirectToGoogleWeb(Request $request)
-{
-    $state = $request->query('state', 'login');
+    {
+        $state = $request->query('state', 'login');
 
-    return Socialite::driver('google')
-        ->with(['state' => $state])
-        ->stateless()
-        ->redirect();
-}
-
-public function handleGoogleCallbackWeb(Request $request)
-{
-    try {
-        $socialiteUser = Socialite::driver('google')->stateless()->user();
-    } catch (\Exception $e) {
-        return redirect()->away(env('FRONTEND_URL') . '/login?error=google_callback');
+        return Socialite::driver('google')
+            ->with(['state' => $state])
+            ->stateless()
+            ->redirect();
     }
 
-    $state = $request->query('state', 'login');
-    $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
-
-    $user = User::where('email', $socialiteUser->getEmail())->first();
-
-    /*
-    |----------------------------------------------------------------------
-    | FLUXO: REGISTER (CRIAR NOVA CONTA)
-    |----------------------------------------------------------------------
-    */
-    if ($state === 'register') {
-        if ($user) {
-            return redirect()->away("{$frontendUrl}/login?error=email_existente");
+    public function handleGoogleCallbackWeb(Request $request)
+    {
+        try {
+            $socialiteUser = Socialite::driver('google')->stateless()->user();
+        } catch (\Exception $e) {
+            return redirect()->away(env('FRONTEND_URL') . '/login?error=google_callback');
         }
 
-        $user = User::create([
-            'email'     => $socialiteUser->getEmail(),
-            'name'      => $socialiteUser->getName(),
-            'google_id' => $socialiteUser->getId(),
-            'password'  => bcrypt('temp_' . uniqid()), // senha temporária
-            'confirmar' => false,
-            'role'      => 'funcionario',
+        $state = $request->query('state', 'login');
+        $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
+
+        $user = User::where('email', $socialiteUser->getEmail())->first();
+
+        // --------------------- REGISTER ---------------------
+        if ($state === 'register') {
+            if ($user) {
+                return redirect()->away("{$frontendUrl}/login?error=email_existente");
+            }
+
+            $user = User::create([
+                'email'     => $socialiteUser->getEmail(),
+                'name'      => $socialiteUser->getName(),
+                'google_id' => $socialiteUser->getId(),
+                'password'  => null, // senha será criada no completar registro
+                'confirmar' => false,
+                'role'      => 'funcionario',
+            ]);
+
+            // Não emite token principal ainda
+            return redirect()->away("{$frontendUrl}/login?success=aguardando_aprovacao");
+        }
+
+        // --------------------- LOGIN ---------------------
+        if (!$user) {
+            return redirect()->away("{$frontendUrl}/login?error=user_not_found");
+        }
+
+        if (!$user->confirmar) {
+            return redirect()->away("{$frontendUrl}/login?error=aguardando_aprovacao");
+        }
+
+        // Se aprovado mas telefone ou senha faltando → envia sinal para completar registro
+        if (!$user->telefone || !$user->password) {
+            return redirect()->away("{$frontendUrl}/login?must_completar_registro=true");
+        }
+
+        // ✅ login autorizado → cria token principal
+        $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+        return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
+    }
+
+    public function completarRegistro(Request $request)
+    {
+        $request->validate([
+            'telefone' => 'required|string|max:20',
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
-        // Aqui não precisamos mais enviar token via URL
-        // O front detecta se user.telefone ou user.password está vazio
-        return redirect()->away("{$frontendUrl}/login");
+        $user = $request->user();
+        $user->telefone = $request->telefone;
+        $user->password = bcrypt($request->password);
+        $user->save();
+
+        return response()->json([
+            'message' => 'Registro completado com sucesso',
+            'user' => $user,
+        ]);
     }
-
-    /*
-    |----------------------------------------------------------------------
-    | FLUXO: LOGIN (USUÁRIO EXISTENTE)
-    |----------------------------------------------------------------------
-    */
-    if (!$user) {
-        return redirect()->away("{$frontendUrl}/login?error=user_not_found");
-    }
-
-    if (!$user->confirmar) {
-        // Usuário ainda não aprovado → front detecta e mostra alerta
-        return redirect()->away("{$frontendUrl}/login");
-    }
-
-    // Login autorizado → cria token principal
-    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-    return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
-}
-
-  /**
-
-    * Completar registro (telefone + senha)
-     * - Rota protegida auth:sanctum
-     * - Mantém confirmar = false (admin precisa aprovar)
-     */
-    public function completeRegistration(Request $request)
-{
-    $user = $request->user();
-
-    // Só permite completar se a conta estiver aprovada
-    if (!$user->confirmar) {
-        return response()->json(['message' => 'Conta ainda não aprovada pelo administrador.'], 403);
-    }
-
-    $request->validate([
-        'telefone' => 'required|string',
-        'password' => 'required|string|min:6|confirmed', // password_confirmation
-    ]);
-
-    $user->update([
-        'telefone' => $request->telefone,
-        'password' => bcrypt($request->password),
-    ]);
-
-    return response()->json(['message' => 'Registro completo com sucesso.']);
-}
-
  
 }

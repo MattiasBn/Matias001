@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext"; 
+import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
@@ -13,16 +13,13 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { motion, Variants } from "framer-motion";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 
-
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  // ✅ Se o erro persistir AQUI, é 100% tipagem do AuthContext.
-  const { user, token, refreshUser } = useAuth(); 
-  
-  const [telefone, setTelefone] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [passwordConfirmation, setPasswordConfirmation] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+  const { user, refreshUser } = useAuth();
+  const [telefone, setTelefone] = useState(user?.telefone || "");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const formVariants: Variants = {
@@ -30,78 +27,52 @@ export default function CompletarRegistroPage() {
     visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
   };
 
+  // Redireciona se o usuário não estiver logado ou já tiver completado o registro
   useEffect(() => {
-    // 💡 LÓGICA: Se user ou token for nulo, redireciona.
-    // Esta verificação garante que 'user' e 'token' NÃO são nulos no resto do componente.
-    if (!user || !token) {
+    if (!user) {
       router.push("/login");
-      return;
-    }
-
-    // 💡 LÓGICA: Se o registro já estiver completo, vai para dashboard.
-    if (user.telefone && user.confirmar) {
+    } else if (user.telefone && user.password) {
       router.push("/dashboard");
     }
-  }, [user, token, router]); // Dependências corretas
+  }, [user, router]);
 
-  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     if (!telefone || !password || !passwordConfirmation) {
-      setError("Preencha todos os campos.");
+      setError("Preencha todos os campos");
       setLoading(false);
       return;
     }
 
     if (password !== passwordConfirmation) {
-      setError("As senhas não coincidem.");
+      setError("Senhas não coincidem");
       setLoading(false);
       return;
     }
-    
-    // 🚀 OTIMIZAÇÃO: Esta checagem já é feita no início da renderização (if (!user || !token) return <Loader />)
-    // e no useEffect. No entanto, mantemos a lógica, mas a otimizamos.
-    if (!token) {
-        setError("Sessão expirada. Faça login novamente.");
-        router.push("/login");
-        setLoading(false);
-        return;
-    }
-    
-    // ✅ CORREÇÃO FINAL: Usamos o Operador de Asserção de Não-Nulo (`!`)
-    // Se o erro está AQUI, é porque o TypeScript não tem certeza de que 'token' é string.
-    // Usar 'token!' garante ao TypeScript que, neste ponto, 'token' é uma string,
-    // pois checamos `if (!token)` um pouco antes.
+
     try {
       await api.post(
         "/completar-registro",
-        { telefone, password, password_confirmation: passwordConfirmation },
-        { headers: { Authorization: `Bearer ${token!}` } }
+        { telefone, password, password_confirmation: passwordConfirmation }
       );
 
-      // 💡 LÓGICA: Atualiza o estado global do usuário.
+      // Atualiza usuário global
       await refreshUser();
 
-      // 💡 LÓGICA: Redireciona após sucesso.
+      // Redireciona após completar registro
       router.push("/dashboard");
     } catch (err) {
-      // ✅ Tratamento de Erro tipado (AxiosError)
       const axiosError = err as AxiosError<{ message?: string }>;
-      if (axiosError.response?.data?.message) {
-        setError(axiosError.response.data.message);
-      } else {
-        setError("Erro ao completar registro. Tente novamente.");
-      }
+      setError(axiosError.response?.data?.message || "Erro ao completar registro");
     } finally {
       setLoading(false);
     }
   };
 
-  // 💡 LÓGICA: Exibe um estado de carregamento enquanto o user/token está sendo verificado
-  if (!user || !token) {
+  if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <ButtonLoader />
@@ -111,10 +82,15 @@ export default function CompletarRegistroPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
-      <motion.div initial="hidden" animate="visible" variants={formVariants} className="w-full max-w-xs sm:max-w-md lg:max-w-lg">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={formVariants}
+        className="w-full max-w-xs sm:max-w-md lg:max-w-lg"
+      >
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="p-4 sm:p-6 pb-2">
-            <CardTitle className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-white">
+            <CardTitle className="text-2xl sm:text-3xl font-bold text-center">
               Completar Registro
             </CardTitle>
             <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
@@ -167,7 +143,13 @@ export default function CompletarRegistroPage() {
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><ButtonLoader /> Aguarde...</> : "Completar Registro"}
+                {loading ? (
+                  <>
+                    <ButtonLoader /> Aguarde...
+                  </>
+                ) : (
+                  "Completar Registro"
+                )}
               </Button>
             </form>
           </CardContent>
