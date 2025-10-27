@@ -221,7 +221,8 @@ class AuthController extends Controller
     }
 
     // ✅ pega ação enviada pela rota (login ou register)
-    $action = $request->query('state', 'login');
+    
+    $action = $request->query('action', 'login');
 
     // ✅ FRONTEND URL
     $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');

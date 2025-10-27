@@ -121,7 +121,7 @@ export function LoginForm() {
 
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true); 
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?action=login`;
 
   };
 

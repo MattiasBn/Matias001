@@ -1,52 +1,55 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const publicRoutes = [
-  "/login",
-  "/register",
-  "/completar-registro",
-  "/esqueceu-senha",
-  "/reset-password",
-];
+export function middleware(req: NextRequest) {
+  const token = req.cookies.get("token")?.value || null;
+  const role = req.cookies.get("user_role")?.value || null;
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get("token")?.value || null;
-  const role = request.cookies.get("user_role")?.value || null;
-  const { pathname } = request.nextUrl;
+  const { pathname } = req.nextUrl;
 
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
+  // ROTAS PÚBLICAS
+  const publicRoutes = [
+    "/login",
+    "/register",
+    "/completar-registro",
+    "/esqueceu-senha",
+    "/reset-password",
+  ];
 
-  // ✅ Se NÃO tem token e está tentando acessar rota PRIVADA → LOGIN
+  // Se o user está logado e tentar acessar rota pública → manda pro dashboard
+  if (token && publicRoutes.includes(pathname)) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  // Se NÃO estiver logado e tentar acessar rota privada → manda pro login
+  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
   if (!token && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // ✅ Se TEM token e está tentando acessar rota PÚBLICA → DASHBOARD
-  if (token && isPublicRoute) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // Regras de permissões por role
+  if (token && role) {
+    // ADMIN tem acesso total → não bloqueamos nada
+    if (role === "administrador") {
+      return NextResponse.next();
+    }
 
-  // --- Proteção por ROLE ---
-  const currentRole = role ?? ""; // Garante que currentRole é sempre uma string, mesmo que nula.
+    // GERENTE → bloqueia rotas admin
+    if (role === "gerente" && pathname.startsWith("/admin")) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
 
-  // 1. Acesso à área Admin
-  if (pathname.startsWith("/dashboard/admin") && currentRole !== "administrador") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+    // FUNCIONARIO → só acessa /funcionario e /dashboard
+    if (role === "funcionario") {
+      const allowedForFuncionario = ["/dashboard", "/funcionario"];
+      const isAllowed = allowedForFuncionario.some((route) =>
+        pathname.startsWith(route)
+      );
 
-  // 2. Acesso à área Gerente (CORREÇÃO DA SINTAXE)
-  // Foi corrigido o erro de sintaxe aqui: `&& !` (agora com espaço)
-  if (pathname.startsWith("/dashboard/gerente") && !["gerente", "administrador"].includes(currentRole)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  // 3. Acesso à área Funcionário (CORREÇÃO DE SEGURANÇA)
-  // Foi adicionada a verificação `currentRole` para lidar com `null` ou `undefined` de forma segura.
-  if (pathname.startsWith("/dashboard/funcionario") && !["funcionario", "gerente", "administrador"].includes(currentRole)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+      if (!isAllowed) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    }
   }
 
   return NextResponse.next();
@@ -55,9 +58,12 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
+    "/admin/:path*",
+    "/gerente/:path*",
+    "/funcionario/:path*",
     "/login",
     "/register",
-    "/completar-registo",
+    "/completar-registro",
     "/esqueceu-senha",
     "/reset-password",
   ],

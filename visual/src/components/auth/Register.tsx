@@ -81,8 +81,7 @@ export default function Register() {
   // MODIFICAÇÃO SOLICITADA: Adicionar loading ao botão Google
   const handleGoogleRegister = () => {
     setIsGoogleLoading(true); // Inicia o loading
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=register`;
-
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?action=register`;
   };
   // FIM MODIFICAÇÃO LOGICA
 
