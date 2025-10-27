@@ -1,13 +1,14 @@
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
   const token = req.cookies.get("token")?.value || null;
   const role = req.cookies.get("user_role")?.value || null;
+  const confirmed = req.cookies.get("user_confirmed")?.value || "false";
 
   const { pathname } = req.nextUrl;
 
-  // ROTAS PÚBLICAS
   const publicRoutes = [
     "/login",
     "/register",
@@ -16,37 +17,37 @@ export function middleware(req: NextRequest) {
     "/reset-password",
   ];
 
-  // Se o user está logado e tentar acessar rota pública → manda pro dashboard
-  if (token && publicRoutes.includes(pathname)) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-
-  // Se NÃO estiver logado e tentar acessar rota privada → manda pro login
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+
+  // Sem token → só pode ficar em rota pública
   if (!token && !isPublicRoute) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Regras de permissões por role
-  if (token && role) {
-    // ADMIN tem acesso total → não bloqueamos nada
-    if (role === "administrador") {
-      return NextResponse.next();
-    }
+  // Com token → não pode ir para rota pública
+  if (token && isPublicRoute && pathname !== "/completar-registro") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
 
-    // GERENTE → bloqueia rotas admin
+  // Se NÃO confirmou → só pode acessar completar-registro
+  if (token && confirmed === "false" && pathname !== "/completar-registro") {
+    return NextResponse.redirect(
+      new URL("/completar-registro", req.url)
+    );
+  }
+
+  // Permissões por role
+  if (token && role) {
+    if (role === "administrador") return NextResponse.next();
+
     if (role === "gerente" && pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // FUNCIONARIO → só acessa /funcionario e /dashboard
     if (role === "funcionario") {
-      const allowedForFuncionario = ["/dashboard", "/funcionario"];
-      const isAllowed = allowedForFuncionario.some((route) =>
-        pathname.startsWith(route)
-      );
-
-      if (!isAllowed) {
+      const allowed = ["/dashboard", "/funcionario"];
+      const ok = allowed.some((route) => pathname.startsWith(route));
+      if (!ok) {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }

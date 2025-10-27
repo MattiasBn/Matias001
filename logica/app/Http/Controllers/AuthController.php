@@ -255,7 +255,8 @@ class AuthController extends Controller
         // ✅ token temporário de completar cadastro
         $token = $user->createToken('registro_token', ['completar-registro'], now()->addMinutes(30))->plainTextToken;
 
-        return redirect()->away("{$frontendUrl}/completar-registo?token={$token}&must_completar_registro=true");
+       return redirect()->away("{$frontendUrl}/completar-registro?token={$token}&must_completar_registro=true");
+
     }
 
     /*
