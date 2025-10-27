@@ -20,14 +20,15 @@ import { AxiosError } from "axios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AtSign, Lock, LogIn, Eye, EyeOff, Info } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-// Componentes do shadcn/ui para o Tooltip (Você deve instalá-los)
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
-import Image from "next/image"; // Componente Image do Next.js
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import Image from "next/image";
 
 interface LoginResponse {
   token?: string;
   access_token?: string;
   accessToken?: string;
+  must_completar_registro?: boolean;
+  token_registro?: string;
   user?: {
     id: number;
     name: string;
@@ -56,7 +57,7 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false); 
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -79,13 +80,26 @@ export function LoginForm() {
         password,
       });
 
+      const { user, must_completar_registro, token_registro } = response.data;
+
+      // ✅ Caso login Google exija completar registro
+      if (must_completar_registro && token_registro) {
+        router.push(`/completar-registro?token=${token_registro}`);
+        return;
+      }
+
+      // ✅ Caso o administrador ainda não aprovou
+      if (user && user.confirmar === false) {
+        setError("A sua conta ainda não foi aprovada pelo administrador.");
+        setIsLoading(false);
+        return;
+      }
+
       const token =
         response.data?.token ??
         response.data?.access_token ??
         response.data?.accessToken ??
         null;
-
-      const user = response.data?.user ?? null;
 
       if (!token || !user) {
         setError("Resposta inválida do servidor: dados de login incompletos.");
@@ -120,9 +134,8 @@ export function LoginForm() {
   };
 
   const handleGoogleLogin = () => {
-    setIsGoogleLoading(true); 
+    setIsGoogleLoading(true);
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`;
-
   };
 
   return (
@@ -135,17 +148,15 @@ export function LoginForm() {
       >
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="p-4 sm:p-6 pb-2">
-            
             <div className="flex justify-center mb-4">
-              <Image 
-                src="/images/MatiaSistemas.png" 
-                alt="Logo Matias Sistemas" 
-                width={150} 
+              <Image
+                src="/images/MatiaSistemas.png"
+                alt="Logo Matias Sistemas"
+                width={150}
                 height={150}
                 className="rounded-lg"
               />
             </div>
-            
             <CardTitle className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-white">
               Entrar na sua Conta
             </CardTitle>
@@ -156,14 +167,12 @@ export function LoginForm() {
 
           <CardContent className="p-4 sm:p-6 pt-2 sm:pt-4">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              {/* Email */}
               <div className="space-y-2">
                 <Label
                   htmlFor="email"
                   className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base"
                 >
                   <AtSign className="mr-2 h-4 w-4" /> Email
-                  
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -185,14 +194,12 @@ export function LoginForm() {
                 />
               </div>
 
-              {/* Senha */}
               <div className="space-y-2">
                 <Label
                   htmlFor="password"
                   className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base"
                 >
                   <Lock className="mr-2 h-4 w-4" /> Senha
-                  
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -227,7 +234,6 @@ export function LoginForm() {
                 </div>
               </div>
 
-              {/* Erro */}
               {error && (
                 <Alert variant="destructive">
                   <AlertTitle>Erro no Login</AlertTitle>
@@ -235,7 +241,6 @@ export function LoginForm() {
                 </Alert>
               )}
 
-              {/* Botão de Login com Email/Senha */}
               <Button className="w-full" type="submit" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? (
                   <span className="flex items-center justify-center space-x-2">
@@ -249,11 +254,10 @@ export function LoginForm() {
               </Button>
             </form>
 
-            {/* Botão Google - CORREÇÃO DA IMAGEM */}
-            <Button 
-              variant="outline" 
-              className="w-full mt-3" 
-              onClick={handleGoogleLogin} 
+            <Button
+              variant="outline"
+              className="w-full mt-3"
+              onClick={handleGoogleLogin}
               disabled={isLoading || isGoogleLoading}
             >
               {isGoogleLoading ? (
@@ -262,18 +266,18 @@ export function LoginForm() {
                 </span>
               ) : (
                 <span className="flex items-center justify-center space-x-2">
-                  <Image // MODIFICAÇÃO: Usando o componente Image
-                    src="https://www.google.com/favicon.ico" 
-                    alt="Google Logo" 
-                    width={16} 
+                  <Image
+                    src="https://www.google.com/favicon.ico"
+                    alt="Google Logo"
+                    width={16}
                     height={16}
-                    className="h-4 w-4" 
+                    className="h-4 w-4"
                   />
                   <span>Entrar com Google</span>
                 </span>
               )}
             </Button>
-            
+
             <div className="mt-4 text-center">
               <Button variant="link" onClick={() => router.push("/esqueceu-senha")}>
                 Esqueceu a senha?

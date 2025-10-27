@@ -17,10 +17,18 @@ export default function CompletarRegistroPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const must = params.get("must_completar_registro"); // ✅ CORRIGIDO
-    const token = localStorage.getItem("token");
+    const must = params.get("must_completar_registro");
+    const urlToken = params.get("token");
 
-    if (!token || !must) {
+    // ✅ Se vier token pela URL, salva no localStorage
+    if (urlToken) {
+      localStorage.setItem("token", urlToken);
+    }
+
+    const savedToken = localStorage.getItem("token");
+
+    // ✅ Se não houver token ou must=false → volta para login
+    if (!savedToken || !must) {
       router.push("/login");
     }
   }, [params, router]);
@@ -34,12 +42,12 @@ export default function CompletarRegistroPage() {
       const token = localStorage.getItem("token");
 
       await api.post(
-         "/completar-registro",
+        "/completar-registro",
         { telefone, password, password_confirmation: passwordConfirmation },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // ✅ Remove sessão e força voltar ao login
+      // ✅ Após completar → apagar sessão e mandar para login
       localStorage.removeItem("token");
       Cookies.remove("token");
       Cookies.remove("user_role");
@@ -69,6 +77,7 @@ export default function CompletarRegistroPage() {
           placeholder="Telefone"
           required
         />
+
         <input
           type="password"
           value={password}
@@ -76,6 +85,7 @@ export default function CompletarRegistroPage() {
           placeholder="Senha"
           required
         />
+
         <input
           type="password"
           value={passwordConfirmation}

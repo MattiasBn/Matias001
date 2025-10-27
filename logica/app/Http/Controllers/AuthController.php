@@ -235,29 +235,30 @@ class AuthController extends Controller
     | FLUXO: REGISTER (CRIAR NOVA CONTA)
     |--------------------------------------------------------------------------
     */
+    
     if ($state === 'register') {
 
-        // 🚨 se já existe, não deixa cadastrar de novo
-        if ($user) {
-            return redirect()->away("{$frontendUrl}/login?error=email_existente");
-        }
-
-        // cria usuário novo
-        $user = User::create([
-            'email'     => $socialiteUser->getEmail(),
-            'name'      => $socialiteUser->getName(),
-            'google_id' => $socialiteUser->getId(),
-            'password'  => null,
-            'confirmar' => false,
-            'role'      => 'funcionario', // mantém tua lógica padrão
-        ]);
-
-        // ✅ token temporário de completar cadastro
-        $token = $user->createToken('registro_token', ['completar-registro'], now()->addMinutes(30))->plainTextToken;
-
-       return redirect()->away("{$frontendUrl}/completar-registro?token={$token}&must_completar_registro=true");
-
+    // 🚨 se já existe, não deixa cadastrar de novo
+    if ($user) {
+        return redirect()->away("{$frontendUrl}/login?error=email_existente");
     }
+
+    // cria usuário novo
+    $user = User::create([
+        'email'     => $socialiteUser->getEmail(),
+        'name'      => $socialiteUser->getName(),
+        'google_id' => $socialiteUser->getId(),
+        'password'  => bcrypt('temp_' . uniqid()), // evita erro SQL, senha será trocada no completar-registro
+        'confirmar' => false,
+        'role'      => 'funcionario',
+    ]);
+
+    // ✅ token temporário apenas para completar registro
+    $token = $user->createToken('registro_token', ['completar-registro'])->plainTextToken;
+
+    return redirect()->away("{$frontendUrl}/completar-registro?token={$token}&must_completar_registro=true");
+}
+
 
     /*
     |--------------------------------------------------------------------------
@@ -269,6 +270,7 @@ class AuthController extends Controller
     }
 
     if (!$user->confirmar) {
+
         return redirect()->away("{$frontendUrl}/login?error=aguardando_aprovacao");
     }
 
@@ -277,7 +279,7 @@ class AuthController extends Controller
 
 return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
 
- //   return redirect()->away("{$frontendUrl}/login?token={$token}#login_success");
+   return redirect()->away("{$frontendUrl}/login?token={$token}#login_success");
 }
 
   /**
