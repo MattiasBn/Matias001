@@ -262,23 +262,27 @@ public function redirectToGoogleWeb(Request $request)
 
         return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
     }
-
-    public function completarRegistro(Request $request)
+    
+  public function completeRegistration(Request $request)
     {
+        $user = $request->user(); // usuário autenticado com token temporário
+
+        if (!$user) {
+            return response()->json(['message' => 'Usuário não autenticado'], 401);
+        }
+
         $request->validate([
             'telefone' => 'required|string|max:20',
             'password' => 'required|string|min:6|confirmed',
         ]);
 
-        $user = $request->user();
         $user->telefone = $request->telefone;
-        $user->password = bcrypt($request->password);
+        $user->password = Hash::make($request->password);
         $user->save();
 
         return response()->json([
             'message' => 'Registro completado com sucesso',
             'user' => $user,
         ]);
-    }
- 
+    } 
 }
