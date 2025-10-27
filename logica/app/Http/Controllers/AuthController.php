@@ -221,8 +221,8 @@ class AuthController extends Controller
     }
 
     // ✅ pega ação enviada pela rota (login ou register)
-    
-    $action = $request->query('action', 'login');
+
+    $state = $request->query('state', 'login');
 
     // ✅ FRONTEND URL
     $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
@@ -235,7 +235,7 @@ class AuthController extends Controller
     | FLUXO: REGISTER (CRIAR NOVA CONTA)
     |--------------------------------------------------------------------------
     */
-    if ($action === 'register') {
+    if ($state === 'register') {
 
         // 🚨 se já existe, não deixa cadastrar de novo
         if ($user) {
