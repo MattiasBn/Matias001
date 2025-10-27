@@ -247,9 +247,9 @@ public function redirectToGoogleWeb()
         ]);
 
         // ✅ token temporário de completar cadastro
-        $token = $user->createToken('registo_token', ['completar-registo'], now()->addMinutes(30))->plainTextToken;
+        $token = $user->createToken('registro_token', ['completar-registro'], now()->addMinutes(30))->plainTextToken;
 
-        return redirect()->away("{$frontendUrl}/completar-registo?token={$token}&must_completar_registo=true");
+        return redirect()->away("{$frontendUrl}/completar-registo?token={$token}&must_completar_registro=true");
     }
 
     /*

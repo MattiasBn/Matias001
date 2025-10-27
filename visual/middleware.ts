@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
 const publicRoutes = [
   "/login",
   "/register",
-  "/completar-registo",
+  "/completar-registro",
   "/esqueceu-senha",
   "/reset-password",
 ];
