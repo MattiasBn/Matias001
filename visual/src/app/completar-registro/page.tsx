@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, Variants } from "framer-motion";
 import api from "@/lib/api";
-import Cookies from "js-cookie";
 import { AxiosError } from "axios";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,21 +31,15 @@ export default function CompletarRegistroPage() {
     const must = params.get("must_completar_registro");
     const urlToken = params.get("token");
 
-    if (urlToken) {
-      localStorage.setItem("token", urlToken);
-    }
-
-    const savedToken = localStorage.getItem("token");
-
-    // Só bloqueia se não existir token temporário ou token antigo
-    if (!savedToken) {
+    if (!must || !urlToken) {
       router.push("/login");
-    } else if (!must && !urlToken) {
-      // Se atualizar a página sem o token na URL, ainda renderiza para não quebrar
-      setReady(true);
-    } else if (must) {
-      setReady(true);
+      return;
     }
+
+    // Salva o token apenas para completar registro, NÃO para autenticação global
+    localStorage.setItem("registro_token", urlToken);
+
+    setReady(true);
   }, [params, router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -55,18 +48,21 @@ export default function CompletarRegistroPage() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const registroToken = localStorage.getItem("registro_token");
+
+      if (!registroToken) {
+        setError("Token inválido. Atualize a página.");
+        setLoading(false);
+        return;
+      }
 
       await api.post(
         "/completar-registro",
         { telefone, password, password_confirmation: passwordConfirmation },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${registroToken}` } }
       );
 
-      localStorage.removeItem("token");
-      Cookies.remove("token");
-      Cookies.remove("user_role");
-      Cookies.set("user_confirmed", "false");
+      localStorage.removeItem("registro_token");
 
       router.push("/login?sucesso=aguarde_aprovacao");
     } catch (err) {
@@ -93,6 +89,11 @@ export default function CompletarRegistroPage() {
             <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
               Complete seus dados para finalizar o cadastro
             </CardDescription>
+
+          <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              Apos completares o registo seras levado a tela de login e so usarás o sistema quando a tua conta for aprovada
+            </CardDescription>
+
           </CardHeader>
 
           <CardContent className="p-4 sm:p-6 pt-2 sm:pt-4">
