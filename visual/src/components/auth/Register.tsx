@@ -181,7 +181,7 @@ export default function Register() {
             >
                 {isGoogleLoading ? (
                     <span className="flex items-center justify-center space-x-2">
-                        <ButtonLoader /> <span>Entrando ao processar...</span> {/* MENSAGEM SOLICITADA */}
+                        <ButtonLoader /> <span>processando aguarde...</span> {/* MENSAGEM SOLICITADA */}
                     </span>
                 ) : (
                     <span className="flex items-center justify-center space-x-2">

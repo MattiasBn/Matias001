@@ -257,7 +257,7 @@ export function LoginForm() {
             >
               {isGoogleLoading ? (
                 <span className="flex items-center justify-center space-x-2">
-                  <ButtonLoader /> <span>Entrando ao processar...</span>
+                  <ButtonLoader /> <span>Entrando aguarde...</span>
                 </span>
               ) : (
                 <span className="flex items-center justify-center space-x-2">
