@@ -54,6 +54,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/perfil', [AuthController::class, 'atualizarPerfil']);
     Route::put('/alterar-senha', [AuthController::class, 'alterarSenha']);
     Route::delete('/perfil', [AuthController::class, 'deletarConta']);
+    
+    Route::post('/completar-registro', [AuthController::class, 'completeRegistration']);
 
     // ==============================
     // Rotas ADMIN

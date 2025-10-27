@@ -1,7 +1,7 @@
-// src/components/auth/LoginForm.tsx
 "use client";
 
-import { useState } from "react";
+// ✅ REMOVEMOS: 'useEffect' não é usado
+import { useState } from "react"; 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,9 +18,11 @@ import ButtonLoader from "@/components/animacao/buttonLoader";
 import api from "@/lib/api";
 import { AxiosError } from "axios";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AtSign, Lock, LogIn, Eye, EyeOff, Info } from "lucide-react";
+// ✅ REMOVEMOS: 'Info' não é usado.
+import { AtSign, Lock, LogIn, Eye, EyeOff } from "lucide-react"; 
 import { useAuth } from "@/context/AuthContext";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+// ✅ REMOVEMOS: Tooltip e seus sub-componentes não estão sendo usados
+// import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
 import Image from "next/image";
 
 interface LoginResponse {
@@ -28,7 +30,6 @@ interface LoginResponse {
   access_token?: string;
   accessToken?: string;
   must_completar_registro?: boolean;
-  token_registro?: string;
   user?: {
     id: number;
     name: string;
@@ -60,13 +61,16 @@ export function LoginForm() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ✅ Corrigido o tipo para React.FormEvent<HTMLFormElement>
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setInfoMessage(null);
 
     if (!email || !password) {
       setError("Preencha todos os campos.");
@@ -75,31 +79,25 @@ export function LoginForm() {
     }
 
     try {
-      const response = await api.post<LoginResponse>("/login", {
-        email,
-        password,
-      });
+      const response = await api.post<LoginResponse>("/login", { email, password });
 
-      const { user, must_completar_registro, token_registro } = response.data;
+      const { user, must_completar_registro } = response.data;
 
-      // ✅ Caso login Google exija completar registro
-      if (must_completar_registro && token_registro) {
-        router.push(`/completar-registro?token=${token_registro}`);
+      // ✅ Se conta precisa completar registro (telefone ou senha ausentes)
+      if (must_completar_registro && user) {
+        // Redireciona e espera que a próxima página trate o token
+        router.push("/completar-registro"); 
         return;
       }
 
-      // ✅ Caso o administrador ainda não aprovou
+      // ✅ Se administrador ainda não aprovou
       if (user && user.confirmar === false) {
-        setError("A sua conta ainda não foi aprovada pelo administrador.");
+        setInfoMessage("A sua conta ainda não foi aprovada pelo administrador. Aguarde aprovação para acessar o sistema.");
         setIsLoading(false);
         return;
       }
 
-      const token =
-        response.data?.token ??
-        response.data?.access_token ??
-        response.data?.accessToken ??
-        null;
+      const token = response.data?.token ?? response.data?.access_token ?? response.data?.accessToken ?? null;
 
       if (!token || !user) {
         setError("Resposta inválida do servidor: dados de login incompletos.");
@@ -108,6 +106,7 @@ export function LoginForm() {
       }
 
       login(token, user);
+
     } catch (err) {
       if (err instanceof AxiosError) {
         const status = err.response?.status;
@@ -117,7 +116,7 @@ export function LoginForm() {
         };
 
         if (status === 403) {
-          setError("A sua conta ainda não foi aprovada pelo administrador.");
+          setInfoMessage("A sua conta ainda não foi aprovada pelo administrador. Aguarde aprovação para acessar o sistema.");
         } else if (responseData?.errors?.email) {
           setError(responseData.errors.email[0]);
         } else if (responseData?.message) {
@@ -135,7 +134,8 @@ export function LoginForm() {
 
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true);
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`;
+    // ⚠️ Atenção: Certifique-se que process.env.NEXT_PUBLIC_API_URL está definido corretamente
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`; 
   };
 
   return (
@@ -166,23 +166,26 @@ export function LoginForm() {
           </CardHeader>
 
           <CardContent className="p-4 sm:p-6 pt-2 sm:pt-4">
+            {/* ALERTAS */}
+            {infoMessage && (
+              <Alert variant="default" className="mb-4">
+                <AlertTitle>Atenção</AlertTitle>
+                <AlertDescription>{infoMessage}</AlertDescription>
+              </Alert>
+            )}
+
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTitle>Erro no Login</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {/* FIM ALERTAS */}
+
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div className="space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base"
-                >
+                <Label htmlFor="email" className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base">
                   <AtSign className="mr-2 h-4 w-4" /> Email
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>O seu endereço de e-mail de acesso.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 </Label>
                 <Input
                   id="email"
@@ -195,21 +198,8 @@ export function LoginForm() {
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="password"
-                  className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base"
-                >
+                <Label htmlFor="password" className="flex items-center text-gray-700 dark:text-gray-300 text-sm sm:text-base">
                   <Lock className="mr-2 h-4 w-4" /> Senha
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>A sua senha pessoal e secreta.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 </Label>
                 <div className="relative">
                   <Input
@@ -225,21 +215,10 @@ export function LoginForm() {
                     onClick={togglePasswordVisibility}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertTitle>Erro no Login</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
 
               <Button className="w-full" type="submit" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? (

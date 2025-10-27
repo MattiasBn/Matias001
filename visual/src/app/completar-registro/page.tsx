@@ -1,73 +1,97 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { motion, Variants } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext"; 
 import api from "@/lib/api";
 import { AxiosError } from "axios";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { motion, Variants } from "framer-motion";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 
-const formVariants: Variants = {
-  hidden: { opacity: 0, y: -20, scale: 0.95 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
-};
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const params = useSearchParams();
-
-  const [telefone, setTelefone] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [loading, setLoading] = useState(false);
+  // ✅ Se o erro persistir AQUI, é 100% tipagem do AuthContext.
+  const { user, token, refreshUser } = useAuth(); 
+  
+  const [telefone, setTelefone] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+
+  const formVariants: Variants = {
+    hidden: { opacity: 0, y: -20, scale: 0.95 },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
+  };
 
   useEffect(() => {
-    const must = params.get("must_completar_registro");
-    const urlToken = params.get("token");
-
-    if (!must || !urlToken) {
+    // 💡 LÓGICA: Se user ou token for nulo, redireciona.
+    // Esta verificação garante que 'user' e 'token' NÃO são nulos no resto do componente.
+    if (!user || !token) {
       router.push("/login");
       return;
     }
 
-    // Salva o token apenas para completar registro, NÃO para autenticação global
-    localStorage.setItem("registro_token", urlToken);
+    // 💡 LÓGICA: Se o registro já estiver completo, vai para dashboard.
+    if (user.telefone && user.confirmar) {
+      router.push("/dashboard");
+    }
+  }, [user, token, router]); // Dependências corretas
 
-    setReady(true);
-  }, [params, router]);
-
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    try {
-      const registroToken = localStorage.getItem("registro_token");
+    if (!telefone || !password || !passwordConfirmation) {
+      setError("Preencha todos os campos.");
+      setLoading(false);
+      return;
+    }
 
-      if (!registroToken) {
-        setError("Token inválido. Atualize a página.");
+    if (password !== passwordConfirmation) {
+      setError("As senhas não coincidem.");
+      setLoading(false);
+      return;
+    }
+    
+    // 🚀 OTIMIZAÇÃO: Esta checagem já é feita no início da renderização (if (!user || !token) return <Loader />)
+    // e no useEffect. No entanto, mantemos a lógica, mas a otimizamos.
+    if (!token) {
+        setError("Sessão expirada. Faça login novamente.");
+        router.push("/login");
         setLoading(false);
         return;
-      }
-
+    }
+    
+    // ✅ CORREÇÃO FINAL: Usamos o Operador de Asserção de Não-Nulo (`!`)
+    // Se o erro está AQUI, é porque o TypeScript não tem certeza de que 'token' é string.
+    // Usar 'token!' garante ao TypeScript que, neste ponto, 'token' é uma string,
+    // pois checamos `if (!token)` um pouco antes.
+    try {
       await api.post(
         "/completar-registro",
         { telefone, password, password_confirmation: passwordConfirmation },
-        { headers: { Authorization: `Bearer ${registroToken}` } }
+        { headers: { Authorization: `Bearer ${token!}` } }
       );
 
-      localStorage.removeItem("registro_token");
+      // 💡 LÓGICA: Atualiza o estado global do usuário.
+      await refreshUser();
 
-      router.push("/login?sucesso=aguarde_aprovacao");
+      // 💡 LÓGICA: Redireciona após sucesso.
+      router.push("/dashboard");
     } catch (err) {
-      if (err instanceof AxiosError && err.response?.data?.message) {
-        setError(err.response.data.message);
+      // ✅ Tratamento de Erro tipado (AxiosError)
+      const axiosError = err as AxiosError<{ message?: string }>;
+      if (axiosError.response?.data?.message) {
+        setError(axiosError.response.data.message);
       } else {
         setError("Erro ao completar registro. Tente novamente.");
       }
@@ -76,7 +100,14 @@ export default function CompletarRegistroPage() {
     }
   };
 
-  if (!ready) return null;
+  // 💡 LÓGICA: Exibe um estado de carregamento enquanto o user/token está sendo verificado
+  if (!user || !token) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <ButtonLoader />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
@@ -87,15 +118,9 @@ export default function CompletarRegistroPage() {
               Completar Registro
             </CardTitle>
             <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              Complete seus dados para finalizar o cadastro
+              Complete seu registro preenchendo telefone e criando uma senha.
             </CardDescription>
-
-          <CardDescription className="text-center mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              Apos completares o registo seras levado a tela de login e so usarás o sistema quando a tua conta for aprovada
-            </CardDescription>
-
           </CardHeader>
-
           <CardContent className="p-4 sm:p-6 pt-2 sm:pt-4">
             {error && (
               <Alert variant="destructive" className="mb-4">
@@ -105,36 +130,44 @@ export default function CompletarRegistroPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              <Input
-                type="text"
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-                placeholder="Telefone"
-                required
-              />
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Senha"
-                required
-              />
-              <Input
-                type="password"
-                value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                placeholder="Confirmar Senha"
-                required
-              />
+              <div className="space-y-2">
+                <Label htmlFor="telefone">Telefone</Label>
+                <Input
+                  id="telefone"
+                  type="text"
+                  placeholder="Digite seu telefone"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="passwordConfirmation">Confirmar Senha</Label>
+                <Input
+                  id="passwordConfirmation"
+                  type="password"
+                  placeholder="Confirme sua senha"
+                  value={passwordConfirmation}
+                  onChange={(e) => setPasswordConfirmation(e.target.value)}
+                  required
+                />
+              </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <span className="flex items-center justify-center space-x-2">
-                    <ButtonLoader /> <span>Aguarde...</span>
-                  </span>
-                ) : (
-                  "Completar Registro"
-                )}
+                {loading ? <><ButtonLoader /> Aguarde...</> : "Completar Registro"}
               </Button>
             </form>
           </CardContent>

@@ -1,3 +1,5 @@
+// NO ARQUIVO: @/context/AuthContext.tsx
+
 "use client";
 
 import {
@@ -15,14 +17,24 @@ import { User, MeResponse } from "@/types/api";
 import Loader from "@/components/animacao/Loader";
 import { AxiosError } from "axios";
 
+// Função auxiliar movida para fora do componente (não precisa ser dependência)
+const setApiToken = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common["Authorization"];
+  }
+};
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (token: string, userData: User) => void;
   logout: () => void;
   loading: boolean;
-  fetchLoggedUser: () => Promise<void>;
+  refreshUser: () => Promise<void>; 
   loginWithGoogle: () => Promise<void>;
+  token: string | null; 
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,70 +48,67 @@ const normalizeStoredToken = (t: string | null | undefined) => {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null); 
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const cookies = useCookies();
 
-  const setApiToken = (token: string | null) => {
-    if (token) {
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    } else {
-      delete api.defaults.headers.common["Authorization"];
-    }
-  };
-
-  const fetchLoggedUser = useCallback(async () => {
+  // 💡 LÓGICA refreshUser
+  const refreshUser = useCallback(async () => {
     const tokenFromStorage = normalizeStoredToken(
       localStorage.getItem("token") || cookies.get("token")
     );
 
     if (!tokenFromStorage) {
       setUser(null);
+      setToken(null);
       return;
     }
 
     setApiToken(tokenFromStorage);
+    setToken(tokenFromStorage);
 
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        setUser(JSON.parse(savedUser) as User); 
       } catch {
         localStorage.removeItem("user");
       }
     }
 
     try {
-      const response = await api.get<MeResponse>("/me");
-      const userData = response.data.user;
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      // ✅ REDIRECIONAR APÓS OBTER USER (GOOGLE LOGIN)
-      switch (userData.role) {
-        case "administrador":
-          router.replace("/dashboard/admin");
-          break;
-        case "funcionario":
-          router.replace("/dashboard/funcionario");
-          break;
-        case "gerente":
-          router.replace("/dashboard/gerente");
-          break;
-        default:
-          router.replace("/dashboard");
-      }
+        const response = await api.get<MeResponse>("/me");
+        const userData = response.data.user;
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        switch (userData.role) {
+            case "administrador":
+                router.replace("/dashboard/admin");
+                break;
+            case "funcionario":
+                router.replace("/dashboard/funcionario");
+                break;
+            case "gerente":
+                router.replace("/dashboard/gerente");
+                break;
+            default:
+                router.replace("/dashboard");
+        }
     } catch (error) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        cookies.remove("token", { path: "/" });
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setUser(null);
-        setApiToken(null);
-      }
+        if (error instanceof AxiosError && error.response?.status === 401) {
+            cookies.remove("token", { path: "/" });
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setToken(null);
+            setApiToken(null);
+            setUser(null);
+        }
     }
-  }, [cookies, router]);
+  }, [cookies, router]); // ✅ Dependências limpas: setToken e setUser são estáveis
 
+  // 💡 LÓGICA LOGIN
   const login = useCallback(
     (token: string, userData: User) => {
       const nt = normalizeStoredToken(token);
@@ -107,12 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cookies.set("token", nt, { path: "/" });
         localStorage.setItem("token", nt);
         setApiToken(nt);
+        setToken(nt);
       }
 
-      if (userData) {
-        localStorage.setItem("user", JSON.stringify(userData));
-        setUser(userData);
-      }
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
 
       switch (userData.role) {
         case "administrador":
@@ -125,9 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return router.push("/dashboard");
       }
     },
-    [cookies, router]
+    [cookies, router] // ✅ Dependências limpas
   );
 
+  // 💡 LÓGICA LOGOUT
   const logout = useCallback(async () => {
     try {
       const tokenFromStorage = normalizeStoredToken(
@@ -140,17 +149,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           { headers: { Authorization: `Bearer ${tokenFromStorage}` } }
         );
       }
-    } catch {}
-    finally {
+    } catch (error) { 
+      console.error("Erro ao fazer logout no servidor:", error);
+    } finally { 
       cookies.remove("token", { path: "/" });
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       setUser(null);
+      setToken(null); 
       setApiToken(null);
       router.push("/login");
     }
-  }, [cookies, router]);
+  }, [cookies, router]); // ✅ Dependências limpas
 
+  // 💡 LÓGICA LOGIN COM GOOGLE
   const loginWithGoogle = useCallback(async () => {
     try {
       const response = await api.get("/auth/google/web/redirect");
@@ -162,27 +174,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ✅ CAPTURAR TOKEN DO GOOGLE APÓS CALLBACK//
-useEffect(() => {
-  const handleGoogleLogin = async () => {
-    const url = new URL(window.location.href);
-    const tokenFromGoogle = url.searchParams.get("token");
+  // 💡 LÓGICA: CAPTURAR TOKEN DO GOOGLE APÓS CALLBACK
+  useEffect(() => {
+    const handleGoogleLogin = async () => {
+      const url = new URL(window.location.href);
+      const tokenFromGoogle = url.searchParams.get("token");
 
-    if (tokenFromGoogle) {
-      localStorage.setItem("token", tokenFromGoogle);
-      cookies.set("token", tokenFromGoogle, { path: "/" });
-      setApiToken(tokenFromGoogle);
+      if (tokenFromGoogle) {
+        localStorage.setItem("token", tokenFromGoogle);
+        cookies.set("token", tokenFromGoogle, { path: "/" });
+        setApiToken(tokenFromGoogle);
 
-      await fetchLoggedUser();
-      router.replace("/"); // limpa a URL
-    }
-  };
+        await refreshUser(); 
+        router.replace("/");
+      }
+    };
 
-  handleGoogleLogin();
-}, []); // ✅ agora sem warnings e sem dependências
+    handleGoogleLogin();
+  }, [cookies, router, refreshUser]); // ✅ Dependências limpas
 
-
-  // ✅ VERIFICAR TOKEN NORMAL AO CARREGAR
+  // 💡 LÓGICA: VERIFICAR TOKEN NORMAL AO CARREGAR
   useEffect(() => {
     const tokenFromStorage = normalizeStoredToken(
       localStorage.getItem("token") || cookies.get("token")
@@ -192,14 +203,17 @@ useEffect(() => {
       setLoading(false);
       return;
     }
+    
+    setToken(tokenFromStorage); 
 
     const initializeAuth = async () => {
-      await fetchLoggedUser();
+      await refreshUser(); 
       setLoading(false);
     };
 
     initializeAuth();
-  }, [cookies, fetchLoggedUser]);
+  }, [cookies, refreshUser]); // ✅ Dependências limpas
+
 
   if (loading) return <Loader />;
 
@@ -211,8 +225,9 @@ useEffect(() => {
         login,
         logout,
         loading,
-        fetchLoggedUser,
-        loginWithGoogle,
+        refreshUser, 
+        loginWithGoogle, 
+        token, 
       }}
     >
       {children}

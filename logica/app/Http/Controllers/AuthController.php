@@ -200,7 +200,8 @@ class AuthController extends Controller
  * - se novo: guarda dados temporários no cache e redireciona para front /complete-registration?social_key=...
  * -/**
  * Redireciona para o Google (web flow)
- */public function redirectToGoogleWeb(Request $request)
+ */
+public function redirectToGoogleWeb(Request $request)
 {
     $state = $request->query('state', 'login');
 
@@ -210,76 +211,61 @@ class AuthController extends Controller
         ->redirect();
 }
 
-// ... (código anterior do controller)
-
-// 3. Função de CALLBACK (Lida com a resposta do Google)public function handleGoogleCallbackWeb(Request $request)
-  public function handleGoogleCallbackWeb(Request $request)  {
+public function handleGoogleCallbackWeb(Request $request)
+{
     try {
         $socialiteUser = Socialite::driver('google')->stateless()->user();
     } catch (\Exception $e) {
         return redirect()->away(env('FRONTEND_URL') . '/login?error=google_callback');
     }
 
-    // ✅ pega ação enviada pela rota (login ou register)
-
     $state = $request->query('state', 'login');
-
-    // ✅ FRONTEND URL
     $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
 
-    // ✅ verifica se usuário existe
     $user = User::where('email', $socialiteUser->getEmail())->first();
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | FLUXO: REGISTER (CRIAR NOVA CONTA)
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
-    
     if ($state === 'register') {
+        if ($user) {
+            return redirect()->away("{$frontendUrl}/login?error=email_existente");
+        }
 
-    // 🚨 se já existe, não deixa cadastrar de novo
-    if ($user) {
-        return redirect()->away("{$frontendUrl}/login?error=email_existente");
+        $user = User::create([
+            'email'     => $socialiteUser->getEmail(),
+            'name'      => $socialiteUser->getName(),
+            'google_id' => $socialiteUser->getId(),
+            'password'  => bcrypt('temp_' . uniqid()), // senha temporária
+            'confirmar' => false,
+            'role'      => 'funcionario',
+        ]);
+
+        // Aqui não precisamos mais enviar token via URL
+        // O front detecta se user.telefone ou user.password está vazio
+        return redirect()->away("{$frontendUrl}/login");
     }
 
-    // cria usuário novo
-    $user = User::create([
-        'email'     => $socialiteUser->getEmail(),
-        'name'      => $socialiteUser->getName(),
-        'google_id' => $socialiteUser->getId(),
-        'password'  => bcrypt('temp_' . uniqid()), // evita erro SQL, senha será trocada no completar-registro
-        'confirmar' => false,
-        'role'      => 'funcionario',
-    ]);
-
-    // ✅ token temporário apenas para completar registro
-    $token = $user->createToken('registro_token', ['completar-registro'])->plainTextToken;
-
-    return redirect()->away("{$frontendUrl}/completar-registro?token={$token}&must_completar_registro=true");
-}
-
-
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | FLUXO: LOGIN (USUÁRIO EXISTENTE)
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     if (!$user) {
         return redirect()->away("{$frontendUrl}/login?error=user_not_found");
     }
 
     if (!$user->confirmar) {
-
-        return redirect()->away("{$frontendUrl}/login?error=aguardando_aprovacao");
+        // Usuário ainda não aprovado → front detecta e mostra alerta
+        return redirect()->away("{$frontendUrl}/login");
     }
 
-    // ✅ login autorizado → cria token principal
+    // Login autorizado → cria token principal
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
-
-   return redirect()->away("{$frontendUrl}/login?token={$token}#login_success");
+    return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
 }
 
   /**
@@ -289,25 +275,26 @@ return redirect()->away("{$frontendUrl}/auth/callback?token={$token}");
      * - Mantém confirmar = false (admin precisa aprovar)
      */
     public function completeRegistration(Request $request)
-    {
-        /** @var \App\Models\User $user */
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        $request->validate([
-            'telefone' => 'required|string|max:20|unique:users,telefone,' . $user->id,
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        $user->telefone = $request->input('telefone');
-        $user->password = Hash::make($request->input('password'));
-        // mantém confirmar = false para aprovação manual
-        $user->save();
-
-        return response()->json([
-            'message' => 'Registro completo. Aguarde aprovação do administrador.',
-            'user' => $user,
-        ], 200);
+    // Só permite completar se a conta estiver aprovada
+    if (!$user->confirmar) {
+        return response()->json(['message' => 'Conta ainda não aprovada pelo administrador.'], 403);
     }
+
+    $request->validate([
+        'telefone' => 'required|string',
+        'password' => 'required|string|min:6|confirmed', // password_confirmation
+    ]);
+
+    $user->update([
+        'telefone' => $request->telefone,
+        'password' => bcrypt($request->password),
+    ]);
+
+    return response()->json(['message' => 'Registro completo com sucesso.']);
+}
 
  
 }
