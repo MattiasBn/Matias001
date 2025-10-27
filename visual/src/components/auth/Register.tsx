@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 // Ícones ajustados para Tooltip
-import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, Info, LogIn} from "lucide-react"; 
+import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, Info} from "lucide-react"; 
 import api from "@/lib/api";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
@@ -81,7 +81,8 @@ export default function Register() {
   // MODIFICAÇÃO SOLICITADA: Adicionar loading ao botão Google
   const handleGoogleRegister = () => {
     setIsGoogleLoading(true); // Inicia o loading
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=register`;
+
   };
   // FIM MODIFICAÇÃO LOGICA
 
