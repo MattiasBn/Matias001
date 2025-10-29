@@ -219,7 +219,7 @@ export default function CompletarRegistroPage() {
                 className="w-full" 
                 disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5} // Adicionada uma verificação básica de tamanho do telefone
               >
-                {loading ? <><ButtonLoader /> Aguarde...</> : "Completar Registro"}
+                {loading ? <><ButtonLoader /> Aguarde Por Favor...</> : "Completar Registro"}
               </Button>
             </form>
           </CardContent>
