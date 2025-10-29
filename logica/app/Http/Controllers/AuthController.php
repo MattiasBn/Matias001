@@ -229,81 +229,79 @@ public function redirectToGoogleWeb(Request $request)
     }
 
     // Dentro da classe AuthController
-
 public function handleGoogleCallbackWeb(Request $request)
 {
     $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
     $state = $request->query('state', 'login');
-    
+
     try {
         $socialiteUser = Socialite::driver('google')->stateless()->user();
     } catch (\Exception $e) {
-        // Usa a rota de callback do frontend para exibir o erro
         return redirect()->away("{$frontendUrl}/auth/callback?error_code=google_callback");
     }
 
+    // Procura usuário existente pelo e-mail
     $user = User::where('email', $socialiteUser->getEmail())->first();
 
-    // ================== A. REGISTER (Criação de Conta Nova) ==================
+    /**
+     * =========================================================
+     * A. REGISTO (CRIAR CONTA NOVA)
+     * =========================================================
+     */
     if ($state === 'register') {
         if ($user) {
-            // Se o usuário existe, redireciona-o para o Login, onde o estado será verificado
+            // Já existe — redireciona para login
             return redirect()->away("{$frontendUrl}/login?error=email_existente");
         }
 
-        // 1. Cria a conta nova em estado PENDENTE e INCOMPLETO
+        // Cria conta nova, pendente de aprovação
         $user = User::create([
             'email'     => $socialiteUser->getEmail(),
             'name'      => $socialiteUser->getName(),
             'google_id' => $socialiteUser->getId(),
-            'password'  => null, // Nulo, incompleto
-            'confirmar' => false, // Pendente de aprovação
+            'password'  => null,
+            'telefone'  => null,
+            'confirmar' => false, // aguardando aprovação
             'role'      => 'funcionario',
-            'photo'     => $socialiteUser->getAvatar(), // Não esquecer a foto, se disponível
+            'photo'     => $socialiteUser->getAvatar(),
         ]);
 
-        // 2. Não emite token. Redireciona para Login com a mensagem
+        // Redireciona com aviso
         return redirect()->away("{$frontendUrl}/login?message_code=REGISTER_PENDING_APPROVAL");
     }
 
-    // ================== B. LOGIN (Acesso à Conta Existente) ==================
-
+    /**
+     * =========================================================
+     * B. LOGIN (ACESSO A CONTA EXISTENTE)
+     * =========================================================
+     */
     if (!$user) {
-        // Se a conta não existe, e o estado não era 'register', envia para login com erro
         return redirect()->away("{$frontendUrl}/login?error=user_not_found");
     }
 
-    // --------------------- CHECK 1: BLOQUEIO (Pendente) ---------------------
+    // 1️⃣ Verifica se o admin já aprovou
     if (!$user->confirmar) {
-        // Redireciona para o login com a mensagem de pendente
         return redirect()->away("{$frontendUrl}/login?message_code=PENDING_APPROVAL");
     }
 
-    // --------------------- CHECK 2: REDIRECIONAMENTO (Incompleto) ---------------------
-    // Usa o Accessor que definimos anteriormente.
-    if (!$user->is_profile_complete) {
-        // O Next.js precisa de um token para aceder à rota protegida /completar-registro.
-        // Criamos um token temporário **SOMENTE** com a habilidade 'incomplete'.
-        $token = $user->createToken('incomplete_token', ['incomplete'])->plainTextToken;
+    // 2️⃣ Revoga tokens antigos
+    $user->tokens()->delete();
 
-        // Redireciona para a rota de callback do Next.js
+    // 3️⃣ Cria novo token com o role do usuário
+    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+    // 4️⃣ Verifica se o perfil está completo (senha + telefone)
+    if (!$user->is_profile_complete) {
+        // Perfil incompleto → redireciona para completar registo
         return redirect()->away("{$frontendUrl}/auth/callback?token={$token}&state=incomplete");
     }
 
-    // --------------------- CHECK 3: ACESSO TOTAL (Completo) ---------------------
-    // Revoga tokens antigos
-    $user->tokens()->delete();
-
-    // Cria token principal com o role
-    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-    // Redireciona para a rota de callback do Next.js
+    // 5️⃣ Perfil completo → redireciona para o dashboard normal
     return redirect()->away("{$frontendUrl}/auth/callback?token={$token}&state=complete");
 }
 
     
  // Dentro da classe AuthController
-
 public function completeRegistration(Request $request)
 {
     /** @var \App\Models\User $user */
@@ -314,6 +312,11 @@ public function completeRegistration(Request $request)
         return response()->json(['message' => 'Usuário não autenticado ou token inválido.'], 401);
     }
 
+    // Opcional: garantir que só usuários aprovados possam completar (se for a regra)
+    if (!$user->confirmar) {
+        return response()->json(['message' => 'Conta ainda não aprovada pelo administrador.'], 403);
+    }
+
     // 2. Validação dos novos dados
     $request->validate([
         'telefone' => 'required|string|max:20',
@@ -321,29 +324,36 @@ public function completeRegistration(Request $request)
     ]);
 
     // 3. Atualiza os dados
-    $user->telefone = $request->telefone;
-    $user->password = Hash::make($request->password);
-    
-    // *OPCIONAL*: Se a aprovação fosse automática ao completar o perfil:
-    // $user->confirmar = true; 
-    // Como a aprovação é feita pelo ADMIN, não toque no 'confirmar' aqui.
-    
-    $user->save();
-    
-    // 4. ✅ RE-AUTENTICAÇÃO (Crucial para Sistemas Stateless!)
-    
-    // A. Revoga o token ATUAL (o temporário com a habilidade 'incomplete')
-    $request->user()->currentAccessToken()->delete(); 
+    $user->telefone = $request->input('telefone');
+    $user->password = Hash::make($request->input('password'));
 
-    // B. Cria o NOVO token principal com a habilidade do ROLE
+    // Não tocar em 'confirmar' (aprovacao feita pelo admin)
+    $user->save();
+
+    // 4. RE-AUTENTICAÇÃO: revogando token atual com checagem
+    $currentToken = $request->user()->currentAccessToken();
+    if ($currentToken) {
+        $currentToken->delete();
+    }
+
+    // Cria o NOVO token principal com a habilidade do ROLE
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
     // 5. Resposta final ao Next.js
     return response()->json([
         'message' => 'Registro completado com sucesso. Bem-vindo!',
-        'access_token' => $token, // Envia o token FINAL
+        'access_token' => $token,
         'token_type' => 'Bearer',
-        'user' => $user->only(['id', 'name', 'email', 'role', 'confirmar', 'is_profile_complete']), // Retorna info essencial
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'confirmar' => $user->confirmar,
+            'is_profile_complete' => (bool) $user->is_profile_complete,
+        ],
     ]);
 }
+
+
 }

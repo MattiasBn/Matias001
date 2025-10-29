@@ -86,40 +86,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // -----------------------------------------------------------
     // LOGIN WITH GOOGLE
     // -----------------------------------------------------------
-    const loginWithGoogle = useCallback(async () => {
-        try {
-            // Chamada à API para obter a URL de redirecionamento do Google
-            const response = await api.get("/auth/google/web/redirect?state=login"); 
-            if (response.data && response.data.auth_url) {
-                window.location.href = response.data.auth_url;
-            } else {
-                throw new Error("Resposta da API inválida para login Google.");
-            }
-        } catch (error) {
-            console.error("Erro ao iniciar login com Google:", error);
-            // Re-throw para o componente capturar
-            throw error; 
-        }
-    }, []); 
+  // -----------------------------------------------------------
+// LOGIN WITH GOOGLE
+// -----------------------------------------------------------
+const loginWithGoogle = useCallback(async () => {
+  try {
+    // ✅ Redireciona diretamente para o Laravel Socialite
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`;
+  } catch (error) {
+    console.error("Erro ao iniciar login com Google:", error);
+    throw error;
+  }
+}, []);
 
-    // -----------------------------------------------------------
-    // ✅ CORRIGIDO: REGISTER WITH GOOGLE (Adicionado e definido)
-    // -----------------------------------------------------------
-    const registerWithGoogle = useCallback(async () => {
-        try {
-            // Chamada à API para obter a URL de redirecionamento do Google
-            const response = await api.get("/auth/google/web/redirect?state=register");
-            if (response.data && response.data.auth_url) {
-                window.location.href = response.data.auth_url;
-            } else {
-                throw new Error("Resposta da API inválida para registo Google.");
-            }
-        } catch (error) {
-            console.error("Erro ao iniciar registo com Google:", error);
-            // Re-throw para o componente capturar
-            throw error; 
-        }
-    }, []); 
+// -----------------------------------------------------------
+// REGISTER WITH GOOGLE 
+// -----------------------------------------------------------
+const registerWithGoogle = useCallback(async () => {
+  try {
+    // ✅ Redireciona diretamente para o Laravel Socialite
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=register`;
+  } catch (error) {
+    console.error("Erro ao iniciar registo com Google:", error);
+    throw error;
+  }
+}, []);
+
 
     // -----------------------------------------------------------
     // FETCH LOGGED USER
@@ -153,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             // 2. Perfil Incompleto (Registo Google sem telefone/senha)
             if (!userData.is_profile_complete) {
-                router.replace("/completar-registro");
+                router.replace("/complete-registration");
                 return;
             }
             

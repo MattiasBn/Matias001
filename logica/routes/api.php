@@ -27,6 +27,9 @@ Route::get('/auth/social/temp/{key}', function ($key) {
 Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
 
+Route::middleware('auth:sanctum')->post('/complete-registration', [AuthController::class, 'completeRegistration']);
+
+
 //Route::post('/completar-registro', [AuthController::class, 'completeRegistration']);
 
  Route::post('/login', [AuthController::class, 'login']);
@@ -55,7 +58,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/alterar-senha', [AuthController::class, 'alterarSenha']);
     Route::delete('/perfil', [AuthController::class, 'deletarConta']);
 
-    Route::post('/completar-registro', [AuthController::class, 'completeRegistration']);
 
     // ==============================
     // Rotas ADMIN
