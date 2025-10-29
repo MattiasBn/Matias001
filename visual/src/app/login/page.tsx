@@ -1,6 +1,6 @@
 'use client'
 
-import { LoginForm } from "@/components/auth/LoginForm";
+import  LoginForm  from "@/components/auth/LoginForm";
 import { motion } from "framer-motion";
 
 const pageVariants = {
