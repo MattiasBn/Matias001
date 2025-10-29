@@ -14,12 +14,13 @@ import { motion, Variants } from "framer-motion";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Lock, CheckCircle, Phone, Info } from "lucide-react"; 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const { user, fetchLoggedUser } = useAuth();
+  const { user, fetchLoggedUser, loading: authLoading } = useAuth(); // Renomeado loading para evitar conflito
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -27,16 +28,39 @@ export default function CompletarRegistroPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordSecure, setIsPasswordSecure] = useState(false); 
 
   const formVariants: Variants = {
     hidden: { opacity: 0, y: -20, scale: 0.95 },
     visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
   };
+  
+  const validatePassword = (pwd: string) => {
+    // Mínimo 9 caracteres, 1 maiúscula, 1 minúscula, 1 número
+    const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{9,}$/;
+    return regex.test(pwd);
+  };
+
 
   useEffect(() => {
-    if (!user) router.push("/login");
-    else if (user.telefone && user.password) router.push("/dashboard");
-  }, [user, router]);
+    // Redireciona se não houver usuário logado (token inválido/expirado)
+    if (user === null && !authLoading) router.replace("/login"); 
+    // Redireciona se o perfil já estiver completo (prevenção)
+    else if (user?.is_profile_complete) router.replace(`/dashboard/${user.role || ""}`);
+    
+    // Se o usuário carregar e já tiver telefone (preenchido previamente), atualiza o estado
+    if (user?.telefone && telefone === "") {
+        setTelefone(user.telefone);
+    }
+  }, [user, router, authLoading, telefone]);
+
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPassword(value);
+    setIsPasswordSecure(validatePassword(value)); 
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,103 +68,157 @@ export default function CompletarRegistroPage() {
     setLoading(true);
 
     if (!telefone || !password || !passwordConfirmation) {
-      setError("Preencha todos os campos");
+      setError("Preencha todos os campos.");
+      setLoading(false);
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      setError("A senha deve ter pelo menos 9 caracteres, incluindo uma letra maiúscula, minúscula e um número.");
       setLoading(false);
       return;
     }
 
     if (password !== passwordConfirmation) {
-      setError("Senhas não coincidem");
-      setLoading(false);
-      return;
-    }
-
-    // Validação de senha: 9+ caracteres, letra maiúscula, minúscula, número
-    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{9,}$/;
-    if (!regex.test(password)) {
-      setError("Senha deve ter pelo menos 9 caracteres, incluindo letras maiúsculas, minúsculas e números");
+      setError("As senhas não coincidem.");
       setLoading(false);
       return;
     }
 
     try {
       await api.post("/completar-registro", { telefone, password, password_confirmation: passwordConfirmation });
-      await fetchLoggedUser();
-      router.push("/dashboard");
+      
+      // Re-fetch do usuário para atualizar o estado is_profile_complete e redirecionar
+      await fetchLoggedUser(); 
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
-      setError(axiosError.response?.data?.message || "Erro ao completar registro");
+      const apiMessage = axiosError.response?.data?.message;
+      
+      if (apiMessage && apiMessage.includes("The telefone has already been taken.")) {
+          setError("O número de telefone já está a ser usado por outro usuário.");
+      } else {
+          setError(apiMessage || "Erro ao completar registro. Verifique seus dados.");
+      }
+      
     } finally {
       setLoading(false);
     }
   };
 
-  if (!user) return <ButtonLoader />;
+  if (!user && authLoading) return <ButtonLoader />; 
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
-      <motion.div initial="hidden" animate="visible" variants={formVariants} className="w-full max-w-md lg:max-w-lg">
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={formVariants} 
+        className="w-full max-w-sm md:max-w-md lg:max-w-lg"
+      >
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="p-6 text-center">
-            <CardTitle className="text-3xl font-bold">Completar Registro</CardTitle>
+            <CardTitle className="text-3xl font-bold">Quase lá, {user?.name.split(' ')[0] || 'Usuário'}!</CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
-              Complete seu registro preenchendo telefone e senha
+              Para sua segurança, defina uma senha e um telefone de contacto.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
             {error && (
               <Alert variant="destructive" className="mb-4">
-                <AlertTitle>Erro</AlertTitle>
+                <AlertTitle>Erro ao continuar</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Telefone */}
               <div>
-                <Label htmlFor="telefone">Telefone</Label>
+                <Label htmlFor="telefone" className="flex items-center gap-2 mb-1">
+                    <Phone className="h-4 w-4" /> Telefone
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Seu número de telefone completo, incluindo o código do país (Angola é o padrão).</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </Label>
                 <PhoneInput
+                  // ✅ PADRÃO ANGOLA
                   country="ao"
                   value={telefone}
                   onChange={setTelefone}
                   inputClass="!w-full !h-10 !rounded-md !border px-3 text-sm !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white"
+                  dropdownClass="!bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !rounded-md shadow-lg"
                   placeholder="Número de telefone"
+                  // ❌ REMOVIDO: O prop 'required' causa erro de tipagem. A validação é feita no handleSubmit.
                 />
               </div>
 
+              {/* Senha */}
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <Label htmlFor="password" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" /> Senha
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Sua senha"
+                    placeholder="Sua nova senha"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
+                    onChange={handlePasswordChange}
+                    className={!isPasswordSecure && password.length > 0 ? "border-red-500" : ""}
+                    required // O Input nativo pode ter o prop required
                   />
+                  {password.length > 0 && (
+                    <span className="absolute right-8 top-1/2 -translate-y-1/2">
+                      <CheckCircle
+                        className={`h-4 w-4 ${isPasswordSecure ? "text-green-500" : "text-gray-400"}`}
+                      />
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {/* AVISO DE COMPOSIÇÃO DA SENHA */}
+                <p className={`text-xs mt-1 ${isPasswordSecure ? 'text-green-500' : 'text-gray-500'}`}>
+                   Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
+                </p>
               </div>
 
+              {/* Confirmação de Senha */}
               <div className="space-y-2">
-                <Label htmlFor="passwordConfirmation">Confirmar Senha</Label>
+                <Label htmlFor="passwordConfirmation" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" /> Confirmar Senha
+                </Label>
                 <Input
                   id="passwordConfirmation"
-                  type="password"
-                  placeholder="Confirme sua senha"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Confirme sua nova senha"
                   value={passwordConfirmation}
                   onChange={(e) => setPasswordConfirmation(e.target.value)}
+                  className={passwordConfirmation.length > 0 && password !== passwordConfirmation ? "border-red-500" : ""}
                   required
                 />
+                {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
+                    <p className="text-red-500 text-sm mt-1">As senhas não coincidem.</p>
+                )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5} // Adicionada uma verificação básica de tamanho do telefone
+              >
                 {loading ? <><ButtonLoader /> Aguarde...</> : "Completar Registro"}
               </Button>
             </form>
@@ -150,3 +228,4 @@ export default function CompletarRegistroPage() {
     </div>
   );
 }
+

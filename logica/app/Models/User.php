@@ -51,4 +51,15 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
         ];
     }
+
+
+        protected function isProfileComplete(): Attribute
+{
+    return Attribute::make(
+        get: fn (mixed $value, array $attributes) => 
+            $attributes['password'] !== null && $attributes['telefone'] !== null,
+    );
+}
+
+
 }

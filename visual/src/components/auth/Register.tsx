@@ -1,4 +1,5 @@
 // src/components/auth/RegisterForm.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -9,15 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// Ícones ajustados para Tooltip
-import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, Info} from "lucide-react"; 
+// Ícones ajustados
+import { User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, Info, LogIn } from "lucide-react"; 
 import api from "@/lib/api";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
 import type { AxiosError } from "axios";
 import Image from 'next/image';
+import { useAuth } from "@/context/AuthContext"; // ✅ IMPORTAR O AUTHCONTEXT
 
-// Componentes do shadcn/ui para o Tooltip (Você deve instalá-los)
+// Componentes do shadcn/ui para o Tooltip
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
 
 import "react-phone-input-2/lib/style.css";
@@ -36,14 +38,23 @@ interface FormErrors {
   global?: string;
 }
 
+// ✅ TIPAGEM CORRIGIDA: Estrutura de erro da API do Laravel
+interface LaravelApiError {
+    errors?: Record<string, string[]>;
+    message?: string;
+}
+
 const errorTranslations: Record<string, string> = {
-  "The email has already been taken.": "já tem um usuario com este email registado.",
+  "The email has already been taken.": "Já tem um usuário com este email registado.",
   "The telefone has already been taken.": "O número de telefone já foi registado.",
   "The name has already been taken.": "O nome já foi registado.",
+  // Adicione outras traduções aqui se necessário
 };
 
 export default function Register() {
   const router = useRouter();
+  // ✅ NOVO: Importar a função do contexto
+  const { registerWithGoogle } = useAuth(); 
 
   const [formData, setFormData] = useState({
     name: "",
@@ -61,6 +72,7 @@ export default function Register() {
   const [isPasswordSecure, setIsPasswordSecure] = useState(false);
 
   const validatePassword = (password: string) => {
+    // Mínimo 9 caracteres, 1 maiúscula, 1 minúscula, 1 número
     const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{9,}$/;
     return regex.test(password);
   };
@@ -78,14 +90,24 @@ export default function Register() {
     setShowPassword(!showPassword);
   };
 
-  // MODIFICAÇÃO SOLICITADA: Adicionar loading ao botão Google
-  const handleGoogleRegister = () => {
-    setIsGoogleLoading(true); // Inicia o loading
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=register`;
+  // ✅ CORRIGIDO: Usar a função do Contexto para chamada segura (em vez de redirecionamento direto)
+  const handleGoogleRegister = async () => {
+    setIsGoogleLoading(true);
+    setErrors({});
+    setSuccess(null);
+    
+    try {
+        await registerWithGoogle(); 
+    } catch (err) {
+        // Se houver erro ANTES do redirecionamento (ex: erro de rede)
+        console.error("Erro ao iniciar registo com Google:", err);
+        setErrors({ global: "Não foi possível iniciar o registo com Google. Tente novamente." });
+        setIsGoogleLoading(false);
+    }
   };
-  // FIM MODIFICAÇÃO LOGICA
+  // FIM CORREÇÃO LOGICA
 
-  // LÓGICA DE SUBMISSÃO MANTIDA INTACTA
+  // LÓGICA DE SUBMISSÃO MANTIDA E TIPADA
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -104,7 +126,8 @@ export default function Register() {
       return;
     }
 
-    if (!telefone) {
+    // Validação de telefone (verifica se foi preenchido)
+    if (!telefone || telefone.length < 5) { // Ajuste o mínimo conforme necessário
       setErrors({ telefone: "O número de telefone é obrigatório." });
       return;
     }
@@ -114,10 +137,13 @@ export default function Register() {
     try {
       await api.post("/register", {
         ...formData,
-        telefone,
+        // Envia o telefone formatado (ex: +244923123456)
+        telefone: telefone, 
       });
 
-      setSuccess("Conta criada com sucesso! Aguarde a confirmação.");
+      setSuccess("Conta criada com sucesso! Aguarde a confirmação e login.");
+      
+      // Limpar formulário (opcional, pode ser removido se preferir manter para debug)
       setFormData({
         name: "",
         email: "",
@@ -126,9 +152,12 @@ export default function Register() {
       });
       setTelefone("");
 
-      setTimeout(() => router.push("/login"), 2000);
+      // Redireciona após sucesso
+      setTimeout(() => router.push("/login?status_code=PENDING_APPROVAL"), 2000); 
     } catch (error: unknown) {
-      const err = error as AxiosError<{ errors?: Record<string, string[]>; message?: string }>;
+      // ✅ TIPAGEM CORRIGIDA para AxiosError
+      const err = error as AxiosError<LaravelApiError>;
+      
       if (err.response?.data?.errors) {
         const fieldErrors: FormErrors = {};
         Object.entries(err.response.data.errors).forEach(([key, value]) => {
@@ -151,37 +180,43 @@ export default function Register() {
   // FIM LÓGICA DE SUBMISSÃO
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
-      <motion.div initial="hidden" animate="visible" variants={formVariants} className="w-full max-w-md">
+    // ✅ MELHORIA: Contêiner principal com padding e centralização
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={formVariants} 
+        // ✅ Responsividade: Limita a largura em telas maiores
+        className="w-full max-w-sm md:max-w-md lg:max-w-lg" 
+      >
         <Card className="shadow-2xl rounded-xl">
           <CardHeader>
-            {/* MODIFICAÇÃO SOLICITADA: Adicionar o Logo da Matias Sistemas */}
+            
             <div className="flex justify-center mb-4">
               <Image 
                 src="/images/MatiaSistemas.png" 
                 alt="Logo Matias Sistemas" 
-                width={150} // Ajuste o tamanho conforme sua necessidade
+                width={150} 
                 height={150}
                 className="rounded-lg"
               />
             </div>
-            {/* FIM MODIFICAÇÃO LOGO */}
-
+            
             <CardTitle className="text-2xl font-bold text-center">Criar Conta</CardTitle>
             <CardDescription className="text-center">Preencha os dados abaixo para criar a sua conta.</CardDescription>
           </CardHeader>
           
           <CardContent>
-            {/* MODIFICAÇÃO SOLICITADA: Botão Google com loading */}
+            
             <Button 
                 variant="outline" 
                 className="w-full flex items-center justify-center gap-2 mb-5" 
-                onClick={handleGoogleRegister}
+                onClick={handleGoogleRegister} // ✅ Chamada corrigida
                 disabled={loading || isGoogleLoading}
             >
                 {isGoogleLoading ? (
                     <span className="flex items-center justify-center space-x-2">
-                        <ButtonLoader /> <span>processando aguarde...</span> {/* MENSAGEM SOLICITADA */}
+                        <ButtonLoader /> <span>Processando...</span>
                     </span>
                 ) : (
                     <span className="flex items-center justify-center space-x-2">
@@ -196,16 +231,13 @@ export default function Register() {
                     </span>
                 )}
             </Button>
-            {/* FIM MODIFICAÇÃO BOTÃO GOOGLE */}
-
-
+            
             <form onSubmit={handleSubmit} className="space-y-5">
               
               {/* Nome */}
               <div>
                 <Label htmlFor="name" className="flex items-center gap-2">
                   <User className="h-4 w-4" /> Nome
-                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -231,7 +263,6 @@ export default function Register() {
               <div>
                 <Label htmlFor="email" className="flex items-center gap-2">
                   <Mail className="h-4 w-4" /> Email
-                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -258,7 +289,6 @@ export default function Register() {
               <div>
                 <Label htmlFor="telefone" className="flex items-center gap-2">
                   <Phone className="h-4 w-4" /> Telefone
-                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -274,12 +304,14 @@ export default function Register() {
                   country={"ao"}
                   value={telefone}
                   onChange={setTelefone}
+                  // Classes de estilo corrigidas para compatibilidade com Tailwind/shadcn
                   inputClass={`!w-full !h-10 !rounded-md !border px-3 text-sm 
-                                    !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white 
-                                    ${errors.telefone ? "!border-red-500" : ""}`}
+                                 !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white 
+                                 ${errors.telefone ? "!border-red-500" : ""}`}
                   dropdownClass="!bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !rounded-md shadow-lg"
                   searchClass="!bg-gray-50 dark:!bg-gray-700 !text-gray-900 dark:!text-white !rounded-md"
                   placeholder="Número de telefone"
+                  enableAreaCodes={true} // Pode ser útil para Angola
                 />
                 {errors.telefone && <p className="text-red-500 text-sm mt-1">{errors.telefone}</p>}
               </div>
@@ -288,7 +320,6 @@ export default function Register() {
               <div>
                 <Label htmlFor="password" className="flex items-center gap-2">
                   <Lock className="h-4 w-4" /> Senha
-                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -334,7 +365,6 @@ export default function Register() {
               <div>
                 <Label htmlFor="password_confirmation" className="flex items-center gap-2">
                   <Lock className="h-4 w-4" /> Confirmar Senha
-                  {/* MODIFICAÇÃO SOLICITADA: Tooltip */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -366,7 +396,7 @@ export default function Register() {
                 </Alert>
               )}
               {success && (
-                <Alert className="border-green-500 text-green-700 flex items-center gap-2">
+                <Alert className="border-green-500 text-green-700 flex items-center gap-2 dark:text-green-300 dark:bg-green-950">
                   <CheckCircle className="h-4 w-4" /> <AlertDescription>{success}</AlertDescription>
                 </Alert>
               )}
@@ -377,7 +407,9 @@ export default function Register() {
                     <ButtonLoader /> Registrando...
                   </span>
                 ) : (
-                  "Registrar"
+                  <>
+                    <LogIn className="h-4 w-4 mr-2" /> Registrar
+                  </>
                 )}
               </Button>
             </form>
