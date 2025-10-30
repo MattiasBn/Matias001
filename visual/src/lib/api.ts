@@ -35,6 +35,13 @@ export const getCsrfCookie = async () => {
 
 
 api.interceptors.request.use((config) => {
+
+   const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+/*  
   console.log("📤 REQUEST:", {
     url: config.url,
     method: config.method,
@@ -42,6 +49,7 @@ api.interceptors.request.use((config) => {
     data: config.data,
   });
 
+  */
   return config;
 });
 

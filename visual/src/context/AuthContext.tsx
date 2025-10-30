@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn("⚠️ Token inválido, abortando login");
       return;
     }
-
+            
     // Salva token
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 7);
