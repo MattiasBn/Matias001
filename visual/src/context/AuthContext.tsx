@@ -106,34 +106,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // -----------------------------------------------------------
   // LOGIN NORMAL
   // -----------------------------------------------------------
-  const login = useCallback(
-    (token: string, userData: User) => {
-      const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + 7);
+ const login = useCallback(
+  (token: string, userData: User) => {
+    console.log("🧩 TOKEN RECEBIDO:", token);
+    console.log("🧩 USER RECEBIDO:", userData);
 
-      cookies.set("token", token, { path: "/", expires: expirationDate });
-      localStorage.setItem("token", token);
-      setApiToken(token);
+    if (!token || token === "undefined" || token === "null") {
+      console.error("⚠️ Token inválido, abortando login");
+      return;
+    }
 
-      localStorage.setItem("user", JSON.stringify(userData));
-      setUser(userData);
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 7);
 
-      switch (userData.role) {
-        case "administrador":
-          router.push("/dashboard/admin");
-          break;
-        case "funcionario":
-          router.push("/dashboard/funcionario");
-          break;
-        case "gerente":
-          router.push("/dashboard/gerente");
-          break;
-        default:
-          router.push("/dashboard");
-      }
-    },
-    [cookies, router, setApiToken]
-  );
+    cookies.set("token", token, { path: "/", expires: expirationDate });
+    localStorage.setItem("token", token);
+    setApiToken(token);
+    
+    localStorage.setItem("user", JSON.stringify(userData));
+    setUser(userData);
+
+    switch (userData.role) {
+      case "administrador": router.push("/dashboard/admin"); break;
+      case "funcionario": router.push("/dashboard/funcionario"); break;
+      case "gerente": router.push("/dashboard/gerente"); break;
+      default: router.push("/dashboard");
+    }
+  },
+  [cookies, router, setApiToken]
+);
 
   // -----------------------------------------------------------
   // FETCH DO UTILIZADOR LOGADO
