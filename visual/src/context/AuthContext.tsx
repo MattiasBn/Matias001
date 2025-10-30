@@ -47,14 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cookies = useCookies();
 
   // ✅ Memoiza a definição do header Authorization
-  const setApiToken = useCallback((token: string | null) => {
-    if (typeof window === "undefined") return;
-    if (token && token !== "undefined") {
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    } else {
-      delete api.defaults.headers.common["Authorization"];
-    }
-  }, []);
+  // --- função setApiToken ---
+ const setApiToken = useCallback((token: string | null) => {
+  if (token) {
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    console.log("🟢 API Token configurado:", token);
+  } else {
+    delete api.defaults.headers.common["Authorization"];
+    console.log("🔴 API Token removido");
+  }
+}, []);
 
   const clearGoogleMessage = useCallback(() => setGoogleMessage(null), []);
 
@@ -111,26 +113,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log("🧩 TOKEN RECEBIDO:", token);
     console.log("🧩 USER RECEBIDO:", userData);
 
-    if (!token || token === "undefined" || token === "null") {
-      console.error("⚠️ Token inválido, abortando login");
+    if (!token) {
+      console.warn("⚠️ Token inválido, abortando login");
       return;
     }
 
+    // Salva token
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 7);
 
     cookies.set("token", token, { path: "/", expires: expirationDate });
     localStorage.setItem("token", token);
+
+    // ⚡️ Configura o header imediatamente
     setApiToken(token);
-    
+
+    // Salva usuário
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
 
+    // Redirecionamento
     switch (userData.role) {
-      case "administrador": router.push("/dashboard/admin"); break;
-      case "funcionario": router.push("/dashboard/funcionario"); break;
-      case "gerente": router.push("/dashboard/gerente"); break;
-      default: router.push("/dashboard");
+      case "administrador":
+        router.push("/dashboard/admin");
+        break;
+      case "funcionario":
+        router.push("/dashboard/funcionario");
+        break;
+      case "gerente":
+        router.push("/dashboard/gerente");
+        break;
+      default:
+        router.push("/dashboard");
     }
   },
   [cookies, router, setApiToken]
