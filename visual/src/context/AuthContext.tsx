@@ -47,16 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cookies = useCookies();
 
   // ✅ Memoiza a definição do header Authorization
-  // --- função setApiToken ---
- const setApiToken = useCallback((token: string | null) => {
-  if (token) {
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    console.log("🟢 API Token configurado:", token);
-  } else {
-    delete api.defaults.headers.common["Authorization"];
-    console.log("🔴 API Token removido");
-  }
-}, []);
+  const setApiToken = useCallback((token: string | null) => {
+    if (typeof window === "undefined") return;
+    if (token && token !== "undefined") {
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    } else {
+      delete api.defaults.headers.common["Authorization"];
+    }
+  }, []);
 
   const clearGoogleMessage = useCallback(() => setGoogleMessage(null), []);
 
