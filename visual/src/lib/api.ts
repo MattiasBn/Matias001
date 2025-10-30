@@ -11,7 +11,7 @@ const BASE_URL =
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api`, // ✅ só a API normal
-  withCredentials: true,     // 🚨 desliga cookies
+ // withCredentials: true,     // 🚨 desliga cookies
   timeout: 10000,
 });
 
@@ -22,12 +22,14 @@ const api = axios.create({
  //🚨 Função auxiliar para pegar o cookie CSRF (rota do Laravel NÃO usa /api)
 export const getCsrfCookie = async () => {
   await axios.get(`${BASE_URL}/sanctum/csrf-cookie`, {
+
     withCredentials: true,
 
 
      headers: {
     'Accept': 'application/json',
   }
+
   });
 
 };
