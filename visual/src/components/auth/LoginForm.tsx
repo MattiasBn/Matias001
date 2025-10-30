@@ -62,31 +62,46 @@ export default function LoginForm() {
   // Login normal
   // ---------------------------------------------------
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-    setLoading(true);
+  e.preventDefault();
+  setErrors({});
+  setLoading(true);
 
-    try {
-      const response = await api.post("/login", formData);
-      const { token, user } = response.data;
-      login(token, user);
-    } catch (error) {
-      const err = error as AxiosError<LaravelApiError>;
-      if (err.response?.data?.errors) {
-        const fieldErrors: FormErrors = {};
-        Object.entries(err.response.data.errors).forEach(([key, value]) => {
-          fieldErrors[key as keyof FormErrors] = value[0];
-        });
-        setErrors(fieldErrors);
-      } else if (err.response?.data?.message) {
-        setErrors({ global: err.response.data.message });
-      } else {
-        setErrors({ global: "Falha ao efetuar login. Verifique suas credenciais." });
-      }
-    } finally {
-      setLoading(false);
+  try {
+    const response = await api.post("/login", formData);
+
+    // ✅ Corrige o nome do token
+    const token = response.data.token || response.data.access_token;
+    const user = response.data.user;
+
+    if (!token || !user) {
+      console.error("❌ Token ou usuário ausente:", response.data);
+      setErrors({ global: "Erro ao efetuar login. Resposta inválida do servidor." });
+      return;
     }
-  };
+
+    console.log("✅ Login bem-sucedido:", { token, user });
+
+    // ✅ Usa a função do AuthContext
+    login(token, user);
+
+  } catch (error) {
+    const err = error as AxiosError<LaravelApiError>;
+
+    if (err.response?.data?.errors) {
+      const fieldErrors: FormErrors = {};
+      Object.entries(err.response.data.errors).forEach(([key, value]) => {
+        fieldErrors[key as keyof FormErrors] = value[0];
+      });
+      setErrors(fieldErrors);
+    } else if (err.response?.data?.message) {
+      setErrors({ global: err.response.data.message });
+    } else {
+      setErrors({ global: "Falha ao efetuar login. Verifique suas credenciais." });
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ---------------------------------------------------
   // Login com Google (AuthContext)
