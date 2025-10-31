@@ -86,7 +86,7 @@ export default function CompletarRegistroPage() {
     }
 
     try {
-      await api.post("/completar-registro", { telefone, password, password_confirmation: passwordConfirmation });
+      await api.post("/complete-registration", { telefone, password, password_confirmation: passwordConfirmation });
       
       // Re-fetch do usuário para atualizar o estado is_profile_complete e redirecionar
       await fetchLoggedUser(); 
