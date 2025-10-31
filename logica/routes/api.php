@@ -9,6 +9,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\GerenteController;
 use App\Http\Controllers\FuncionarioController;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Http\Request;
 // ==============================
 // Rotas públicas (sem autenticação)
 // ==============================
@@ -29,6 +30,10 @@ Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbac
 
 Route::middleware('auth:sanctum')->post('/complete-registration', [AuthController::class, 'completeRegistration']);
 
+
+Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
+    return response()->json($request->user());
+});
 
 //Route::post('/completar-registro', [AuthController::class, 'completeRegistration']);
 
@@ -53,7 +58,7 @@ Route::middleware('api')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     // Autenticação / perfil
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me', [UserController::class, 'me']);
+   // Route::get('/me', [UserController::class, 'me']);
     Route::put('/perfil', [AuthController::class, 'atualizarPerfil']);
     Route::put('/alterar-senha', [AuthController::class, 'alterarSenha']);
     Route::delete('/perfil', [AuthController::class, 'deletarConta']);

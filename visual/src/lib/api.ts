@@ -11,7 +11,7 @@ const BASE_URL =
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api`, // ✅ só a API normal
- // withCredentials: true,     // 🚨 desliga cookies
+  withCredentials: true,     // 🚨 desliga cookies
   timeout: 10000,
 });
 
