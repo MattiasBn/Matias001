@@ -303,46 +303,40 @@ public function handleGoogleCallbackWeb(Request $request)
 
     
  // Dentro da classe AuthController
-public function completeRegistration(Request $request)
+
+ public function completeRegistration(Request $request)
 {
     /** @var \App\Models\User $user */
-    $user = $request->user(); // Usuário autenticado pelo token Sanctum
+    $user = $request->user();
 
-    // 1. Verificação de Pré-requisitos
     if (!$user) {
         return response()->json(['message' => 'Usuário não autenticado ou token inválido.'], 401);
     }
 
-    // Opcional: garantir que só usuários aprovados possam completar (se for a regra)
-    if (!$user->confirmar) {
-        return response()->json(['message' => 'Conta ainda não aprovada pelo administrador.'], 403);
+    // Só pode completar uma vez
+    if ($user->telefone && $user->password) {
+        return response()->json([
+            'message' => 'Perfil já foi completado anteriormente.',
+            'is_profile_complete' => true,
+            'user' => $user,
+        ], 200);
     }
 
-    // 2. Validação dos novos dados
     $request->validate([
         'telefone' => 'required|string|max:20',
         'password' => 'required|string|min:6|confirmed',
     ]);
 
-    // 3. Atualiza os dados
+    // Atualiza dados
     $user->telefone = $request->input('telefone');
     $user->password = Hash::make($request->input('password'));
-
-    // Não tocar em 'confirmar' (aprovacao feita pelo admin)
     $user->save();
 
-    // 4. RE-AUTENTICAÇÃO: revogando token atual com checagem
-    $currentToken = $request->user()->currentAccessToken();
-    if ($currentToken) {
-        $currentToken->delete();
-    }
-
-    // Cria o NOVO token principal com a habilidade do ROLE
+    // Cria novo token apenas se quiser invalidar o anterior
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-    // 5. Resposta final ao Next.js
     return response()->json([
-        'message' => 'Registro completado com sucesso. Bem-vindo!',
+        'message' => 'Registro completado com sucesso!',
         'access_token' => $token,
         'token_type' => 'Bearer',
         'user' => [
@@ -351,7 +345,7 @@ public function completeRegistration(Request $request)
             'email' => $user->email,
             'role' => $user->role,
             'confirmar' => $user->confirmar,
-            'is_profile_complete' => (bool) $user->is_profile_complete,
+            'is_profile_complete' => true,
         ],
     ]);
 }

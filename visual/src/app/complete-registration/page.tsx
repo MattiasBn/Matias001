@@ -17,10 +17,9 @@ import "react-phone-input-2/lib/style.css";
 import { Eye, EyeOff, Lock, CheckCircle, Phone, Info } from "lucide-react"; 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const { user, fetchLoggedUser, loading: authLoading } = useAuth(); // Renomeado loading para evitar conflito
+  const { user, fetchLoggedUser, loading: authLoading } = useAuth(); 
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -34,33 +33,30 @@ export default function CompletarRegistroPage() {
     hidden: { opacity: 0, y: -20, scale: 0.95 },
     visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
   };
-  
+
   const validatePassword = (pwd: string) => {
-    // Mínimo 9 caracteres, 1 maiúscula, 1 minúscula, 1 número
     const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{9,}$/;
     return regex.test(pwd);
   };
 
-
-  useEffect(() => {
-    // Redireciona se não houver usuário logado (token inválido/expirado)
-    if (user === null && !authLoading) router.replace("/login"); 
-    // Redireciona se o perfil já estiver completo (prevenção)
-    else if (user?.is_profile_complete) router.replace(`/dashboard/${user.role || ""}`);
-    
-    // Se o usuário carregar e já tiver telefone (preenchido previamente), atualiza o estado
-    if (user?.telefone && telefone === "") {
-        setTelefone(user.telefone);
-    }
-  }, [user, router, authLoading, telefone]);
-
-
+  // ✅ Função que estava a faltar
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPassword(value);
-    setIsPasswordSecure(validatePassword(value)); 
+    setIsPasswordSecure(validatePassword(value));
   };
 
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (user.is_profile_complete) {
+      router.replace(`/dashboard/${user.role || ""}`);
+      return;
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,24 +82,34 @@ export default function CompletarRegistroPage() {
     }
 
     try {
-      await api.post("/complete-registration", { telefone, password, password_confirmation: passwordConfirmation });
-      
-      // Re-fetch do usuário para atualizar o estado is_profile_complete e redirecionar
-      await fetchLoggedUser(); 
+      await api.post("/complete-registration", { 
+        telefone, 
+        password, 
+        password_confirmation: passwordConfirmation 
+      });
+
+      await fetchLoggedUser();
+
+      setTimeout(() => {
+        router.push(`/dashboard/${user?.role || ""}`);
+      }, 500);
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
       const apiMessage = axiosError.response?.data?.message;
-      
       if (apiMessage && apiMessage.includes("The telefone has already been taken.")) {
-          setError("O número de telefone já está a ser usado por outro usuário.");
+        setError("O número de telefone já está a ser usado por outro usuário.");
       } else {
-          setError(apiMessage || "Erro ao completar registro. Verifique seus dados.");
+        setError(apiMessage || "Erro ao completar registro. Verifique seus dados.");
       }
-      
     } finally {
       setLoading(false);
     }
   };
+
+   
+
+
+
 
   if (!user && authLoading) return <ButtonLoader />; 
 
@@ -135,34 +141,32 @@ export default function CompletarRegistroPage() {
               {/* Telefone */}
               <div>
                 <Label htmlFor="telefone" className="flex items-center gap-2 mb-1">
-                    <Phone className="h-4 w-4" /> Telefone
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Seu número de telefone completo, incluindo o código do país (Angola é o padrão).</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                  <Phone className="h-4 w-4" /> Telefone
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Seu número de telefone completo, incluindo o código do país (Angola é o padrão).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <PhoneInput
-                  // ✅ PADRÃO ANGOLA
                   country="ao"
                   value={telefone}
                   onChange={setTelefone}
                   inputClass="!w-full !h-10 !rounded-md !border px-3 text-sm !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white"
                   dropdownClass="!bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !rounded-md shadow-lg"
                   placeholder="Número de telefone"
-                  // ❌ REMOVIDO: O prop 'required' causa erro de tipagem. A validação é feita no handleSubmit.
                 />
               </div>
 
               {/* Senha */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center gap-2">
-                    <Lock className="h-4 w-4" /> Senha
+                  <Lock className="h-4 w-4" /> Senha
                 </Label>
                 <div className="relative">
                   <Input
@@ -172,7 +176,7 @@ export default function CompletarRegistroPage() {
                     value={password}
                     onChange={handlePasswordChange}
                     className={!isPasswordSecure && password.length > 0 ? "border-red-500" : ""}
-                    required // O Input nativo pode ter o prop required
+                    required
                   />
                   {password.length > 0 && (
                     <span className="absolute right-8 top-1/2 -translate-y-1/2">
@@ -189,16 +193,15 @@ export default function CompletarRegistroPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {/* AVISO DE COMPOSIÇÃO DA SENHA */}
                 <p className={`text-xs mt-1 ${isPasswordSecure ? 'text-green-500' : 'text-gray-500'}`}>
-                   Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
+                  Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
                 </p>
               </div>
 
-              {/* Confirmação de Senha */}
+              {/* Confirmar Senha */}
               <div className="space-y-2">
                 <Label htmlFor="passwordConfirmation" className="flex items-center gap-2">
-                    <Lock className="h-4 w-4" /> Confirmar Senha
+                  <Lock className="h-4 w-4" /> Confirmar Senha
                 </Label>
                 <Input
                   id="passwordConfirmation"
@@ -210,14 +213,14 @@ export default function CompletarRegistroPage() {
                   required
                 />
                 {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
-                    <p className="text-red-500 text-sm mt-1">As senhas não coincidem.</p>
+                  <p className="text-red-500 text-sm mt-1">As senhas não coincidem.</p>
                 )}
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5} // Adicionada uma verificação básica de tamanho do telefone
+                disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5}
               >
                 {loading ? <><ButtonLoader /> Aguarde Por Favor...</> : "Completar Registro"}
               </Button>
@@ -228,4 +231,3 @@ export default function CompletarRegistroPage() {
     </div>
   );
 }
-
