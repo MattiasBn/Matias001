@@ -2,6 +2,12 @@
 const nextConfig = {
   // outras configurações aqui...
 
+  output: "standalone", // ✅ importante para Render
+  reactStrictMode: true,
+  experimental: {
+    appDir: true,
+          },
+
    images: {
     domains: ['www.google.com'], // Adicione outros domínios de imagens externas aqui
   },
