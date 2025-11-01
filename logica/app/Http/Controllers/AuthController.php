@@ -303,30 +303,51 @@ public function handleGoogleCallbackWeb(Request $request)
 }
 
     
- // Dentro da classe AuthControllerpublic 
-
- function completeRegistration(Request $request)
+ // Dentro da classe AuthController
+public function completeRegistration(Request $request)
 {
-    
-    $user = auth()->user();
+    /** @var \App\Models\User $user */
+    $user = $request->user();
+
+    if (!$user) {
+        return response()->json(['message' => 'Usuário não autenticado ou token inválido.'], 401);
+    }
+
+    // ✅ Só Google Users podem completar
+    if (!$user->google_id) {
+        return response()->json(['message' => 'Esta conta já está completa.'], 403);
+    }
+
+    // ✅ Se já tiver telefone/senha, bloqueia nova tentativa
+    if ($user->telefone && $user->password) {
+        return response()->json([
+            'message' => 'Perfil já completado anteriormente.',
+            'is_profile_complete' => true,
+        ], 200);
+    }
 
     $request->validate([
-        'telefone' => 'required|string|unique:users,telefone,' . $user->id,
-        'password' => 'required|confirmed|min:9',
+        'telefone' => 'required|string|max:20',
+        'password' => 'required|string|min:8|confirmed',
     ]);
 
-    $user->telefone = $request->telefone;
-    $user->password = bcrypt($request->password);
-    $user->is_profile_complete = true;
-    $user->save();
+    $user->update([
+        'telefone' => $request->telefone,
+        'password' => Hash::make($request->password),
+    ]);
 
-    // 🚀 Atualiza token (se necessário)
-    $token = $user->createToken('API Token')->plainTextToken;
+    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
+    
     return response()->json([
-        'message' => 'Perfil atualizado com sucesso.',
-        'access_token' => $token,
-        'user' => $user,
+        'message' => 'Perfil completo',
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'google_id' => $user->google_id,
+            'is_profile_complete' => true, // 🔥 força atualização
+        ]
     ]);
 }
 
