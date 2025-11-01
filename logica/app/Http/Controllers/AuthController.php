@@ -338,18 +338,16 @@ public function completeRegistration(Request $request)
 
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
+    
     return response()->json([
-        'message' => 'Registro completado com sucesso!',
-        'access_token' => $token,
-        'token_type' => 'Bearer',
+        'message' => 'Perfil completo',
         'user' => [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'role' => $user->role,
-            'confirmar' => $user->confirmar,
-            'is_profile_complete' => true,
-        ],
+            'google_id' => $user->google_id,
+            'is_profile_complete' => true, // 🔥 força atualização
+        ]
     ]);
 }
 

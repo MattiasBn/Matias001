@@ -8,18 +8,40 @@ import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/components/ui/alert";
 import { motion, Variants } from "framer-motion";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { Eye, EyeOff, Lock, CheckCircle, Phone, Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  CheckCircle,
+  Phone,
+  Info,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const { user, login, fetchLoggedUser, loading: authLoading } = useAuth();
+  const { user, login, loading: authLoading } = useAuth();
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -31,7 +53,12 @@ export default function CompletarRegistroPage() {
 
   const formVariants: Variants = {
     hidden: { opacity: 0, y: -20, scale: 0.95 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { duration: 0.6, ease: "easeOut" },
+    },
   };
 
   const validatePassword = (pwd: string) => {
@@ -44,35 +71,29 @@ export default function CompletarRegistroPage() {
     setPassword(value);
     setIsPasswordSecure(validatePassword(value));
   };
-// ✅ Apenas contas Google incompletas podem ver esta página
-useEffect(() => {
-  if (authLoading) return;
 
-  // Se não estiver logado → volta pro login
-  if (!user) {
-    router.replace("/login");
-    return;
-  }
+  // ✅ Apenas contas Google incompletas podem ver esta página
+  useEffect(() => {
+    if (authLoading) return;
 
-  // 🚫 Se NÃO for conta Google → redireciona pro dashboard
-  if (!user.google_id) {
-    router.replace(`/dashboard/${user.role || ""}`);
-    return;
-  }
+    // Se não estiver logado → login
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
 
-  // 🚫 Se a conta Google já completou perfil → dashboard
-  if (user.is_profile_complete) {
-    router.replace(`/dashboard/${user.role || ""}`);
-    return;
-  }
+    // Se NÃO for conta Google → dashboard
+    if (!user.google_id) {
+      router.replace(`/dashboard/${user.role || ""}`);
+      return;
+    }
 
-  // ✅ Só fica aqui se for conta Google e ainda não completou perfil
-}, [user, authLoading, router]);
-
-
-
-
-
+    // Se conta Google já completou o perfil → dashboard
+    if (user.is_profile_complete) {
+      router.replace(`/dashboard/${user.role || ""}`);
+      return;
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +107,9 @@ useEffect(() => {
     }
 
     if (!validatePassword(password)) {
-      setError("A senha deve ter pelo menos 9 caracteres, incluindo uma letra maiúscula, minúscula e um número.");
+      setError(
+        "A senha deve ter pelo menos 9 caracteres, incluindo uma letra maiúscula, minúscula e um número."
+      );
       setLoading(false);
       return;
     }
@@ -106,14 +129,22 @@ useEffect(() => {
 
       const data = response.data;
 
-      // ✅ Atualiza o contexto e redireciona após sucesso
+      // 🔥 Atualiza token e user imediatamente
       if (data.access_token && data.user) {
         login(data.access_token, data.user);
-        router.push(`/dashboard/${data.user.role || ""}`);
-      } else {
-        await fetchLoggedUser();
-        router.push(`/dashboard/${user?.role || ""}`);
       }
+
+      // ✅ Busca o user atualizado do backend
+      const meResponse = await api.get("/me");
+      const freshUser = meResponse.data;
+
+      // Atualiza contexto
+      login(data.access_token || localStorage.getItem("token"), freshUser);
+
+      // Aguarda um pequeno delay para evitar loop
+      setTimeout(() => {
+        router.replace(`/dashboard/${freshUser.role || ""}`);
+      }, 400);
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
       const apiMessage = axiosError.response?.data?.message;
@@ -121,7 +152,9 @@ useEffect(() => {
       if (apiMessage?.includes("The telefone has already been taken.")) {
         setError("O número de telefone já está a ser usado por outro usuário.");
       } else {
-        setError(apiMessage || "Erro ao completar registro. Verifique seus dados.");
+        setError(
+          apiMessage || "Erro ao completar registro. Verifique seus dados."
+        );
       }
     } finally {
       setLoading(false);
@@ -159,7 +192,10 @@ useEffect(() => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Telefone */}
               <div>
-                <Label htmlFor="telefone" className="flex items-center gap-2 mb-1">
+                <Label
+                  htmlFor="telefone"
+                  className="flex items-center gap-2 mb-1"
+                >
                   <Phone className="h-4 w-4" /> Telefone
                   <TooltipProvider>
                     <Tooltip>
@@ -167,7 +203,10 @@ useEffect(() => {
                         <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Seu número de telefone completo, incluindo o código do país (Angola é o padrão).</p>
+                        <p>
+                          Seu número de telefone completo, incluindo o código do
+                          país (Angola é o padrão).
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -194,13 +233,21 @@ useEffect(() => {
                     placeholder="Sua nova senha"
                     value={password}
                     onChange={handlePasswordChange}
-                    className={!isPasswordSecure && password.length > 0 ? "border-red-500" : ""}
+                    className={
+                      !isPasswordSecure && password.length > 0
+                        ? "border-red-500"
+                        : ""
+                    }
                     required
                   />
                   {password.length > 0 && (
                     <span className="absolute right-8 top-1/2 -translate-y-1/2">
                       <CheckCircle
-                        className={`h-4 w-4 ${isPasswordSecure ? "text-green-500" : "text-gray-400"}`}
+                        className={`h-4 w-4 ${
+                          isPasswordSecure
+                            ? "text-green-500"
+                            : "text-gray-400"
+                        }`}
                       />
                     </span>
                   )}
@@ -209,19 +256,29 @@ useEffect(() => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
                 <p
-                  className={`text-xs mt-1 ${isPasswordSecure ? "text-green-500" : "text-gray-500"}`}
+                  className={`text-xs mt-1 ${
+                    isPasswordSecure ? "text-green-500" : "text-gray-500"
+                  }`}
                 >
-                  Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
+                  Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e
+                  um número.
                 </p>
               </div>
 
               {/* Confirmar Senha */}
               <div className="space-y-2">
-                <Label htmlFor="passwordConfirmation" className="flex items-center gap-2">
+                <Label
+                  htmlFor="passwordConfirmation"
+                  className="flex items-center gap-2"
+                >
                   <Lock className="h-4 w-4" /> Confirmar Senha
                 </Label>
                 <Input
@@ -231,15 +288,19 @@ useEffect(() => {
                   value={passwordConfirmation}
                   onChange={(e) => setPasswordConfirmation(e.target.value)}
                   className={
-                    passwordConfirmation.length > 0 && password !== passwordConfirmation
+                    passwordConfirmation.length > 0 &&
+                    password !== passwordConfirmation
                       ? "border-red-500"
                       : ""
                   }
                   required
                 />
-                {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
-                  <p className="text-red-500 text-sm mt-1">As senhas não coincidem.</p>
-                )}
+                {passwordConfirmation.length > 0 &&
+                  password !== passwordConfirmation && (
+                    <p className="text-red-500 text-sm mt-1">
+                      As senhas não coincidem.
+                    </p>
+                  )}
               </div>
 
               <Button
