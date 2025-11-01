@@ -303,8 +303,7 @@ public function handleGoogleCallbackWeb(Request $request)
 
     
  // Dentro da classe AuthController
-
- public function completeRegistration(Request $request)
+public function completeRegistration(Request $request)
 {
     /** @var \App\Models\User $user */
     $user = $request->user();
@@ -313,26 +312,29 @@ public function handleGoogleCallbackWeb(Request $request)
         return response()->json(['message' => 'Usuário não autenticado ou token inválido.'], 401);
     }
 
-    // Só pode completar uma vez
+    // ✅ Só Google Users podem completar
+    if (!$user->google_id) {
+        return response()->json(['message' => 'Esta conta já está completa.'], 403);
+    }
+
+    // ✅ Se já tiver telefone/senha, bloqueia nova tentativa
     if ($user->telefone && $user->password) {
         return response()->json([
-            'message' => 'Perfil já foi completado anteriormente.',
+            'message' => 'Perfil já completado anteriormente.',
             'is_profile_complete' => true,
-            'user' => $user,
         ], 200);
     }
 
     $request->validate([
         'telefone' => 'required|string|max:20',
-        'password' => 'required|string|min:6|confirmed',
+        'password' => 'required|string|min:8|confirmed',
     ]);
 
-    // Atualiza dados
-    $user->telefone = $request->input('telefone');
-    $user->password = Hash::make($request->input('password'));
-    $user->save();
+    $user->update([
+        'telefone' => $request->telefone,
+        'password' => Hash::make($request->password),
+    ]);
 
-    // Cria novo token apenas se quiser invalidar o anterior
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
     return response()->json([

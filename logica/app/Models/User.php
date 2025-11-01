@@ -53,6 +53,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
 
+    public function getIsProfileCompleteAttribute()
+{
+    return !empty($this->telefone) && !empty($this->password);
+}
+
+
         protected function isProfileComplete(): Attribute
 {
      return Attribute::make(

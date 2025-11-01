@@ -14,12 +14,12 @@ import { motion, Variants } from "framer-motion";
 import ButtonLoader from "@/components/animacao/buttonLoader";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { Eye, EyeOff, Lock, CheckCircle, Phone, Info } from "lucide-react"; 
+import { Eye, EyeOff, Lock, CheckCircle, Phone, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const { user, fetchLoggedUser, loading: authLoading } = useAuth(); 
+  const { user, login, fetchLoggedUser, loading: authLoading } = useAuth();
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -27,7 +27,7 @@ export default function CompletarRegistroPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [isPasswordSecure, setIsPasswordSecure] = useState(false); 
+  const [isPasswordSecure, setIsPasswordSecure] = useState(false);
 
   const formVariants: Variants = {
     hidden: { opacity: 0, y: -20, scale: 0.95 },
@@ -39,20 +39,22 @@ export default function CompletarRegistroPage() {
     return regex.test(pwd);
   };
 
-  // ✅ Função que estava a faltar
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPassword(value);
     setIsPasswordSecure(validatePassword(value));
   };
 
+  // 🚦 Proteção: só contas Google incompletas podem ver esta página
   useEffect(() => {
     if (authLoading) return;
+
     if (!user) {
       router.replace("/login");
       return;
     }
-    if (user.is_profile_complete) {
+
+    if (user.is_profile_complete || !user.google_id) {
       router.replace(`/dashboard/${user.role || ""}`);
       return;
     }
@@ -82,20 +84,25 @@ export default function CompletarRegistroPage() {
     }
 
     try {
-      await api.post("/complete-registration", { 
-        telefone, 
-        password, 
-        password_confirmation: passwordConfirmation 
+      const response = await api.post("/complete-registration", {
+        telefone,
+        password,
+        password_confirmation: passwordConfirmation,
       });
 
-      await fetchLoggedUser();
+      const data = response.data;
 
-      setTimeout(() => {
+      // ✅ Atualiza o contexto com novo token e user
+      if (data.access_token && data.user) {
+        login(data.access_token, data.user);
+      } else {
+        await fetchLoggedUser();
         router.push(`/dashboard/${user?.role || ""}`);
-      }, 500);
+      }
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
       const apiMessage = axiosError.response?.data?.message;
+
       if (apiMessage && apiMessage.includes("The telefone has already been taken.")) {
         setError("O número de telefone já está a ser usado por outro usuário.");
       } else {
@@ -106,28 +113,26 @@ export default function CompletarRegistroPage() {
     }
   };
 
-   
-
-
-
-
-  if (!user && authLoading) return <ButtonLoader />; 
+  if (!user && authLoading) return <ButtonLoader />;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
-      <motion.div 
-        initial="hidden" 
-        animate="visible" 
-        variants={formVariants} 
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={formVariants}
         className="w-full max-w-sm md:max-w-md lg:max-w-lg"
       >
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="p-6 text-center">
-            <CardTitle className="text-3xl font-bold">Quase lá, {user?.name.split(' ')[0] || 'Usuário'}!</CardTitle>
+            <CardTitle className="text-3xl font-bold">
+              Quase lá, {user?.name.split(" ")[0] || "Usuário"}!
+            </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
               Para sua segurança, defina uma senha e um telefone de contacto.
             </CardDescription>
           </CardHeader>
+
           <CardContent className="p-6">
             {error && (
               <Alert variant="destructive" className="mb-4">
@@ -137,7 +142,6 @@ export default function CompletarRegistroPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              
               {/* Telefone */}
               <div>
                 <Label htmlFor="telefone" className="flex items-center gap-2 mb-1">
@@ -193,7 +197,11 @@ export default function CompletarRegistroPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className={`text-xs mt-1 ${isPasswordSecure ? 'text-green-500' : 'text-gray-500'}`}>
+                <p
+                  className={`text-xs mt-1 ${
+                    isPasswordSecure ? "text-green-500" : "text-gray-500"
+                  }`}
+                >
                   Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
                 </p>
               </div>
@@ -209,7 +217,11 @@ export default function CompletarRegistroPage() {
                   placeholder="Confirme sua nova senha"
                   value={passwordConfirmation}
                   onChange={(e) => setPasswordConfirmation(e.target.value)}
-                  className={passwordConfirmation.length > 0 && password !== passwordConfirmation ? "border-red-500" : ""}
+                  className={
+                    passwordConfirmation.length > 0 && password !== passwordConfirmation
+                      ? "border-red-500"
+                      : ""
+                  }
                   required
                 />
                 {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
@@ -217,12 +229,23 @@ export default function CompletarRegistroPage() {
                 )}
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={
+                  loading ||
+                  !isPasswordSecure ||
+                  password !== passwordConfirmation ||
+                  telefone.length < 5
+                }
               >
-                {loading ? <><ButtonLoader /> Aguarde Por Favor...</> : "Completar Registro"}
+                {loading ? (
+                  <>
+                    <ButtonLoader /> Aguarde Por Favor...
+                  </>
+                ) : (
+                  "Completar Registro"
+                )}
               </Button>
             </form>
           </CardContent>
