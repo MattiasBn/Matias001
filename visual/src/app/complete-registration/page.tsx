@@ -45,26 +45,23 @@ export default function CompletarRegistroPage() {
     setIsPasswordSecure(validatePassword(value));
   };
 
-  // 🚦 Proteção: só contas Google incompletas podem ver esta página
+  // ✅ Apenas contas Google incompletas podem ver esta página
   useEffect(() => {
     if (authLoading) return;
 
-    // se não estiver logado → volta pro login
+    // Se não estiver logado → login
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    // ✅ apenas usuários Google podem completar o registro
-    const isGoogleUser = !!user.google_id || user.login_type === "google";
-
-    if (!isGoogleUser) {
-      // usuário normal → vai direto pro dashboard
+    // Se NÃO for conta Google → dashboard direto
+    if (!user.google_id) {
       router.replace(`/dashboard/${user.role || ""}`);
       return;
     }
 
-    // ✅ se já tiver completo → dashboard
+    // Se perfil Google já estiver completo → dashboard
     if (user.is_profile_complete) {
       router.replace(`/dashboard/${user.role || ""}`);
       return;
@@ -103,7 +100,7 @@ export default function CompletarRegistroPage() {
 
       const data = response.data;
 
-      // ✅ Atualiza o contexto com novo token e user
+      // ✅ Atualiza o contexto e redireciona após sucesso
       if (data.access_token && data.user) {
         login(data.access_token, data.user);
         router.push(`/dashboard/${data.user.role || ""}`);
@@ -115,7 +112,7 @@ export default function CompletarRegistroPage() {
       const axiosError = err as AxiosError<{ message?: string }>;
       const apiMessage = axiosError.response?.data?.message;
 
-      if (apiMessage && apiMessage.includes("The telefone has already been taken.")) {
+      if (apiMessage?.includes("The telefone has already been taken.")) {
         setError("O número de telefone já está a ser usado por outro usuário.");
       } else {
         setError(apiMessage || "Erro ao completar registro. Verifique seus dados.");
@@ -125,7 +122,7 @@ export default function CompletarRegistroPage() {
     }
   };
 
-  if (!user && authLoading) return <ButtonLoader />;
+  if (authLoading) return <ButtonLoader />;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
@@ -209,7 +206,9 @@ export default function CompletarRegistroPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className={`text-xs mt-1 ${isPasswordSecure ? "text-green-500" : "text-gray-500"}`}>
+                <p
+                  className={`text-xs mt-1 ${isPasswordSecure ? "text-green-500" : "text-gray-500"}`}
+                >
                   Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
                 </p>
               </div>

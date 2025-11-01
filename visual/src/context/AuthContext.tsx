@@ -174,10 +174,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (!userData.is_profile_complete) {
-        router.replace("/complete-registration");
-        return;
-      }
+     if (userData.google_id && !userData.is_profile_complete) {
+  router.replace("/complete-registration");
+  return;
+}
 
       const dashboardPath = `/dashboard/${userData.role}`;
       if (
