@@ -177,10 +177,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // ✅ Apenas contas Google precisam completar o registo
-      if (userData.google_id && !userData.is_profile_complete) {
+        if (userData.google_id && !userData.is_profile_complete) {
+      if (pathname !== "/complete-registration") {
         router.replace("/complete-registration");
-        return;
       }
+      return;
+    }
+
 
       // 🔧 Corrige o path do dashboard de acordo com o role
       let dashboardPath = "/dashboard";
