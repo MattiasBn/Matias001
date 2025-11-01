@@ -117,6 +117,7 @@ class AuthController extends Controller
         'role' => $user->role,
         'confirmar' => $user->confirmar,
         'photo' => $user->photo,
+        'login_type' => $user->login_type, // 👈 adiciona isto
         // O campo 'is_profile_complete' é fornecido pelo Accessor que criamos
         'is_profile_complete' => $user->is_profile_complete, 
     ]);

@@ -49,12 +49,23 @@ export default function CompletarRegistroPage() {
   useEffect(() => {
     if (authLoading) return;
 
+    // se não estiver logado → volta pro login
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    if (user.is_profile_complete || !user.google_id) {
+    // ✅ apenas usuários Google podem completar o registro
+    const isGoogleUser = !!user.google_id || user.login_type === "google";
+
+    if (!isGoogleUser) {
+      // usuário normal → vai direto pro dashboard
+      router.replace(`/dashboard/${user.role || ""}`);
+      return;
+    }
+
+    // ✅ se já tiver completo → dashboard
+    if (user.is_profile_complete) {
       router.replace(`/dashboard/${user.role || ""}`);
       return;
     }
@@ -95,6 +106,7 @@ export default function CompletarRegistroPage() {
       // ✅ Atualiza o contexto com novo token e user
       if (data.access_token && data.user) {
         login(data.access_token, data.user);
+        router.push(`/dashboard/${data.user.role || ""}`);
       } else {
         await fetchLoggedUser();
         router.push(`/dashboard/${user?.role || ""}`);
@@ -197,11 +209,7 @@ export default function CompletarRegistroPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p
-                  className={`text-xs mt-1 ${
-                    isPasswordSecure ? "text-green-500" : "text-gray-500"
-                  }`}
-                >
+                <p className={`text-xs mt-1 ${isPasswordSecure ? "text-green-500" : "text-gray-500"}`}>
                   Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
                 </p>
               </div>
