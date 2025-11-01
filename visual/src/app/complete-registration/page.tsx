@@ -44,29 +44,35 @@ export default function CompletarRegistroPage() {
     setPassword(value);
     setIsPasswordSecure(validatePassword(value));
   };
+// ✅ Apenas contas Google incompletas podem ver esta página
+useEffect(() => {
+  if (authLoading) return;
 
-  // ✅ Apenas contas Google incompletas podem ver esta página
-  useEffect(() => {
-    if (authLoading) return;
+  // Se não estiver logado → volta pro login
+  if (!user) {
+    router.replace("/login");
+    return;
+  }
 
-    // Se não estiver logado → login
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
+  // 🚫 Se NÃO for conta Google → redireciona pro dashboard
+  if (!user.google_id) {
+    router.replace(`/dashboard/${user.role || ""}`);
+    return;
+  }
 
-    // Se NÃO for conta Google → dashboard direto
-    if (!user.google_id) {
-      router.replace(`/dashboard/${user.role || ""}`);
-      return;
-    }
+  // 🚫 Se a conta Google já completou perfil → dashboard
+  if (user.is_profile_complete) {
+    router.replace(`/dashboard/${user.role || ""}`);
+    return;
+  }
 
-    // Se perfil Google já estiver completo → dashboard
-    if (user.is_profile_complete) {
-      router.replace(`/dashboard/${user.role || ""}`);
-      return;
-    }
-  }, [user, authLoading, router]);
+  // ✅ Só fica aqui se for conta Google e ainda não completou perfil
+}, [user, authLoading, router]);
+
+
+
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
