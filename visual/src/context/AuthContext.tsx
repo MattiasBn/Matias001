@@ -148,11 +148,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   [cookies, router, setApiToken]
 );
 
-  // -----------------------------------------------------------
-  // FETCH DO UTILIZADOR LOGADO
+    // -----------------------------------------------------------
+  // FETCH DO UTILIZADOR LOGADO (corrigido)
   // -----------------------------------------------------------
   const fetchLoggedUser = useCallback(async () => {
     setLoading(true);
+
     const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
 
     if (!tokenFromStorage) {
@@ -168,23 +169,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
 
+      // 🚫 Usuário não confirmado — volta para login
       if (!userData.confirmar) {
         logout();
         router.replace("/login?status_code=PENDING_APPROVAL");
         return;
       }
 
-     if (userData.google_id && !userData.is_profile_complete) {
-  router.replace("/complete-registration");
-  return;
-}
+      // ✅ Apenas contas Google precisam completar o registo
+      if (userData.google_id && !userData.is_profile_complete) {
+        router.replace("/complete-registration");
+        return;
+      }
 
-      const dashboardPath = `/dashboard/${userData.role}`;
+      // 🔧 Corrige o path do dashboard de acordo com o role
+      let dashboardPath = "/dashboard";
+
+      switch (userData.role) {
+        case "administrador":
+          dashboardPath = "/dashboard/admin";
+          break;
+        case "funcionario":
+          dashboardPath = "/dashboard/funcionario";
+          break;
+        case "gerente":
+          dashboardPath = "/dashboard/gerente";
+          break;
+      }
+
+      // 🚀 Redirecionamento automático se estiver em login ou root
       if (
         pathname.startsWith("/login") ||
         pathname === "/" ||
         pathname === "/register" ||
-        pathname === "/completar-registro"
+        pathname === "/complete-registration"
       ) {
         if (!pathname.startsWith(dashboardPath)) {
           router.replace(dashboardPath);
@@ -198,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, [cookies, router, pathname, logout, setApiToken]);
+
 
   // -----------------------------------------------------------
   // CALLBACK DO GOOGLE + INICIALIZAÇÃO
@@ -233,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setApiToken(tokenFromGoogle);
 
         if (state === "incomplete") {
-          router.replace("/completar-registro");
+          router.replace("/completar-registration");
         } else if (state === "complete") {
           await fetchLoggedUser();
         } else {
