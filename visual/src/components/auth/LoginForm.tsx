@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,7 @@ interface LaravelApiError {
 
 export default function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const { loginWithGoogle, login } = useAuth();
 
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -47,6 +48,33 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // ---------------------------------------------------
+  // ✅ Incremento: Notificações da conta Google (sem loop)
+  // ---------------------------------------------------
+  useEffect(() => {
+    const messageCode = params.get("message_code");
+    if (!messageCode) return;
+
+    switch (messageCode) {
+      case "PENDING_APPROVAL":
+        alert("🚫 A sua conta ainda não foi aprovada pelo administrador.");
+        break;
+      case "REGISTER_PENDING_APPROVAL":
+        alert("✅ Conta criada com sucesso! Aguarde a ativação pelo administrador.");
+        break;
+      case "ERROR":
+        alert("❌ Ocorreu um erro ao tentar autenticar com o Google. Tente novamente.");
+        break;
+      default:
+        break;
+    }
+
+    // Remove o parâmetro da URL após exibir a mensagem (impede loop)
+    const url = new URL(window.location.href);
+    url.searchParams.delete("message_code");
+    window.history.replaceState({}, "", url.toString());
+  }, [params]);
 
   // ---------------------------------------------------
   // Lógica de input
@@ -62,49 +90,46 @@ export default function LoginForm() {
   // Login normal
   // ---------------------------------------------------
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setErrors({});
-  setLoading(true);
+    e.preventDefault();
+    setErrors({});
+    setLoading(true);
 
-  try {
-    const response = await api.post("/login", formData);
+    try {
+      const response = await api.post("/login", formData);
 
-    // ✅ Corrige o nome do token
-    const token = response.data.token || response.data.access_token;
-    const user = response.data.user;
+      const token = response.data.token || response.data.access_token;
+      const user = response.data.user;
 
-    if (!token || !user) {
-      console.error("❌ Token ou usuário ausente:", response.data);
-      setErrors({ global: "Erro ao efetuar login. Resposta inválida do servidor." });
-      return;
+      if (!token || !user) {
+        console.error("❌ Token ou usuário ausente:", response.data);
+        setErrors({ global: "Erro ao efetuar login. Resposta inválida do servidor." });
+        return;
+      }
+
+      console.log("✅ Login bem-sucedido:", { token, user });
+
+      login(token, user);
+    } catch (error) {
+      const err = error as AxiosError<LaravelApiError>;
+
+      if (err.response?.data?.errors) {
+        const fieldErrors: FormErrors = {};
+        Object.entries(err.response.data.errors).forEach(([key, value]) => {
+          fieldErrors[key as keyof FormErrors] = value[0];
+        });
+        setErrors(fieldErrors);
+      } else if (err.response?.data?.message) {
+        setErrors({ global: err.response.data.message });
+      } else {
+        setErrors({ global: "Falha ao efetuar login. Verifique suas credenciais." });
+      }
+    } finally {
+      setLoading(false);
     }
-
-    console.log("✅ Login bem-sucedido:", { token, user });
-
-    // ✅ Usa a função do AuthContext
-    login(token, user);
-
-  } catch (error) {
-    const err = error as AxiosError<LaravelApiError>;
-
-    if (err.response?.data?.errors) {
-      const fieldErrors: FormErrors = {};
-      Object.entries(err.response.data.errors).forEach(([key, value]) => {
-        fieldErrors[key as keyof FormErrors] = value[0];
-      });
-      setErrors(fieldErrors);
-    } else if (err.response?.data?.message) {
-      setErrors({ global: err.response.data.message });
-    } else {
-      setErrors({ global: "Falha ao efetuar login. Verifique suas credenciais." });
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // ---------------------------------------------------
-  // Login com Google (AuthContext)
+  // Login com Google
   // ---------------------------------------------------
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
