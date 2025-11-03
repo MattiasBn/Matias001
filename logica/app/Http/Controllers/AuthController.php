@@ -339,20 +339,22 @@ public function completeRegistration(Request $request)
     ]);
 
 $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-return response()->json([
-    'message' => 'Perfil completo',
-    'user' => [
-        'id' => $user->id,
-        'name' => $user->name,
-        'email' => $user->email,
-        'google_id' => $user->google_id,
-        'telefone' => $user->telefone,
-        'role' => $user->role,
-        'is_profile_complete' => true,
-    ],
-    'access_token' => $token, // 🔥 ESSA LINHA É FUNDAMENTAL
-]);
+  return response()->json([
+        'message' => 'Perfil completo',
+        
+        'token'   => $token, // ✅ devolve o novo token
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'google_id' => $user->google_id,
+            'photo' => $user->photo,
+            'role' => $user->role,
+            'telefone' => $user->telefone,
+            'is_profile_complete' => true,
+            'confirmar' => $user->confirmar,
+        ],
+    ]);
 
 }
 

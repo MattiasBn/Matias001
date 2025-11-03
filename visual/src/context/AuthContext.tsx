@@ -113,59 +113,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   // -----------------------------------------------------------
-  // FETCH USER LOGADO
-  // -----------------------------------------------------------
-  const fetchLoggedUser = useCallback(async () => {
-    const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
-    if (!tokenFromStorage) {
-      setUser(null);
-      setLoading(false);
+// FETCH DO UTILIZADOR LOGADO (corrigido)
+// -----------------------------------------------------------
+const fetchLoggedUser = useCallback(async () => {
+  setLoading(true);
+
+  const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
+
+  if (!tokenFromStorage) {
+    setUser(null);
+    setLoading(false);
+    return;
+  }
+
+  setApiToken(tokenFromStorage);
+
+  try {
+    const userData = await api.get<MeResponse>("/me").then((res) => res.data);
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    // 🚫 Usuário não confirmado — volta para login
+    if (!userData.confirmar) {
+      logout();
+      router.replace("/login?status_code=PENDING_APPROVAL");
       return;
     }
 
-    setApiToken(tokenFromStorage);
-    setLoading(true);
-
-    try {
-      const { data } = await api.get<MeResponse>("/me");
-      setUser(data);
-      localStorage.setItem("user", JSON.stringify(data));
-
-      // 🚫 Usuário não confirmado
-      if (!data.confirmar) {
-        logout();
-        router.replace("/login?status_code=PENDING_APPROVAL");
-        return;
+    // ✅ Contas Google precisam completar perfil
+    if (userData.google_id && !userData.is_profile_complete) {
+      if (pathname !== "/complete-registration") {
+        router.replace("/complete-registration");
       }
-
-      // 👤 Conta Google incompleta
-      if (data.google_id && !data.is_profile_complete) {
-        if (pathname !== "/complete-registration") {
-          router.replace("/complete-registration");
-        }
-        return;
-      }
-
-      // 🧭 Corrigir dashboard conforme role
-      const dashboards: Record<string, string> = {
-        administrador: "/dashboard/admin",
-        funcionario: "/dashboard/funcionario",
-        gerente: "/dashboard/gerente",
-      };
-
-      const targetDashboard = dashboards[data.role] || "/dashboard";
-
-      if (["/", "/login", "/register", "/complete-registration"].includes(pathname)) {
-        router.replace(targetDashboard);
-      }
-    } catch (error) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        logout();
-      }
-    } finally {
-      setLoading(false);
+      return;
     }
-  }, [cookies, router, pathname, logout, setApiToken]);
+
+    // 🔧 Corrige o path do dashboard de acordo com o role
+    let dashboardPath = "/dashboard";
+
+    switch (userData.role) {
+      case "administrador":
+        dashboardPath = "/dashboard/admin";
+        break;
+      case "funcionario":
+        dashboardPath = "/dashboard/funcionario";
+        break;
+      case "gerente":
+        dashboardPath = "/dashboard/gerente";
+        break;
+    }
+
+    // 🚀 Se já completou o perfil e está em /complete-registration, manda pro dashboard
+    if (pathname === "/complete-registration" && userData.is_profile_complete) {
+      router.replace(dashboardPath);
+      return;
+    }
+
+    // 🚀 Redirecionamento automático se estiver em login ou root
+    if (
+      pathname.startsWith("/login") ||
+      pathname === "/" ||
+      pathname === "/register"
+    ) {
+      router.replace(dashboardPath);
+    }
+  } catch (error) {
+    if (error instanceof AxiosError && error.response?.status === 401) {
+      logout();
+    }
+  } finally {
+    setLoading(false);
+  }
+}, [cookies, router, pathname, logout, setApiToken]);
 
   // -----------------------------------------------------------
   // LOGIN COM GOOGLE
