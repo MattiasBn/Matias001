@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState, useEffect, useContext, ReactNode, useCallback, useRef } from "react";
+import { createContext, useState, useEffect, useContext, ReactNode, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useCookies } from "next-client-cookies";
 import api from "@/lib/api";
@@ -8,6 +8,9 @@ import { User, MeResponse } from "@/types/api";
 import Loader from "@/components/animacao/Loader";
 import { AxiosError } from "axios";
 
+// -----------------------------------------------------------
+// TIPAGEM DO CONTEXTO
+// -----------------------------------------------------------
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -30,6 +33,9 @@ const normalizeStoredToken = (t: string | null | undefined) => {
   return s;
 };
 
+// -----------------------------------------------------------
+// PROVIDER
+// -----------------------------------------------------------
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,8 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const cookies = useCookies();
-  const initializedRef = useRef(false); // evita múltiplos redirects na inicialização
 
+  // ✅ Define Authorization header
   const setApiToken = useCallback((token: string | null) => {
     if (typeof window === "undefined") return;
     if (token && token !== "undefined") {
@@ -51,6 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearGoogleMessage = useCallback(() => setGoogleMessage(null), []);
 
+  // -----------------------------------------------------------
+  // LOGOUT
+  // -----------------------------------------------------------
   const logout = useCallback(async () => {
     try {
       const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
@@ -58,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await api.post("/logout", {}, { headers: { Authorization: `Bearer ${tokenFromStorage}` } });
       }
     } catch {
-      // ignore
+      // ignora erro
     } finally {
       cookies.remove("token", { path: "/" });
       localStorage.removeItem("token");
@@ -69,26 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [cookies, router, setApiToken]);
 
-  const loginWithGoogle = useCallback(async () => {
-    try {
-      window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`;
-    } catch (error) {
-      console.error("Erro ao iniciar login com Google:", error);
-      throw error;
-    }
-  }, []);
-
-  const registerWithGoogle = useCallback(async () => {
-    try {
-      window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=register`;
-    } catch (error) {
-      console.error("Erro ao iniciar registo com Google:", error);
-      throw error;
-    }
-  }, []);
-
+  // -----------------------------------------------------------
+  // LOGIN NORMAL
+  // -----------------------------------------------------------
   const login = useCallback(
     (token: string, userData: User) => {
+      console.log("🧩 TOKEN RECEBIDO:", token);
+      console.log("🧩 USER RECEBIDO:", userData);
+
       if (!token) {
         console.warn("⚠️ Token inválido, abortando login");
         return;
@@ -96,133 +93,153 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + 7);
-
       cookies.set("token", token, { path: "/", expires: expirationDate });
       localStorage.setItem("token", token);
 
       setApiToken(token);
-
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
+
+      // 🚀 Redirecionamento conforme role
+      const rolePath: Record<string, string> = {
+        administrador: "/dashboard/admin",
+        funcionario: "/dashboard/funcionario",
+        gerente: "/dashboard/gerente",
+      };
+
+      router.push(rolePath[userData.role] || "/dashboard");
     },
-    [cookies, setApiToken]
+    [cookies, router, setApiToken]
   );
 
-  const fetchLoggedUser = useCallback(async () => {
-    setLoading(true);
-    const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
+  // -----------------------------------------------------------
+// FETCH DO UTILIZADOR LOGADO (corrigido)
+// -----------------------------------------------------------
+const fetchLoggedUser = useCallback(async () => {
+  setLoading(true);
 
-    if (!tokenFromStorage) {
-      setUser(null);
-      setLoading(false);
+  const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
+
+  if (!tokenFromStorage) {
+    setUser(null);
+    setLoading(false);
+    return;
+  }
+
+  setApiToken(tokenFromStorage);
+
+  try {
+    const userData = await api.get<MeResponse>("/me").then((res) => res.data);
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    // 🚫 Usuário não confirmado — volta para login
+    if (!userData.confirmar) {
+      logout();
+      router.replace("/login?status_code=PENDING_APPROVAL");
       return;
     }
 
-    setApiToken(tokenFromStorage);
-
-    try {
-      const userData = await api.get<MeResponse>("/me").then((res) => res.data);
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      if (!userData.confirmar) {
-        // conta não aprovada
-        await logout();
-        router.replace("/login?status_code=PENDING_APPROVAL");
-        return;
+    // ✅ Contas Google precisam completar perfil
+    if (userData.google_id && !userData.is_profile_complete) {
+      if (pathname !== "/complete-registration") {
+        router.replace("/complete-registration");
       }
-
-      // Apenas contas com google_id incompletas devem ver complete-registration
-      if (userData.google_id && !userData.is_profile_complete) {
-        // evita redirect repetido
-        if (!pathname.startsWith("/complete-registration")) {
-          router.replace("/complete-registration");
-        }
-        return;
-      }
-
-      // determina dashboardPath pelo role (normalizado)
-      let dashboardPath = "/dashboard";
-      switch (userData.role) {
-        case "administrador":
-          dashboardPath = "/dashboard/admin";
-          break;
-        case "funcionario":
-          dashboardPath = "/dashboard/funcionario";
-          break;
-        case "gerente":
-          dashboardPath = "/dashboard/gerente";
-          break;
-      }
-
-      // redireciona para dashboard apenas se estivermos numa rota pública
-      const publicPaths = ["/", "/login", "/register", "/complete-registration"];
-      const isPublic = publicPaths.some((p) => pathname.startsWith(p));
-      if (isPublic && !pathname.startsWith(dashboardPath)) {
-        router.replace(dashboardPath);
-      }
-    } catch (error) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        await logout();
-      }
-    } finally {
-      setLoading(false);
+      return;
     }
-  }, [cookies, router, pathname, logout, setApiToken]);
 
+    // 🔧 Corrige o path do dashboard de acordo com o role
+    let dashboardPath = "/dashboard";
+
+    switch (userData.role) {
+      case "administrador":
+        dashboardPath = "/dashboard/admin";
+        break;
+      case "funcionario":
+        dashboardPath = "/dashboard/funcionario";
+        break;
+      case "gerente":
+        dashboardPath = "/dashboard/gerente";
+        break;
+    }
+
+    // 🚀 Se já completou o perfil e está em /complete-registration, manda pro dashboard
+    if (pathname === "/complete-registration" && userData.is_profile_complete) {
+      router.replace(dashboardPath);
+      return;
+    }
+
+    // 🚀 Redirecionamento automático se estiver em login ou root
+    if (
+      pathname.startsWith("/login") ||
+      pathname === "/" ||
+      pathname === "/register"
+    ) {
+      router.replace(dashboardPath);
+    }
+  } catch (error) {
+    if (error instanceof AxiosError && error.response?.status === 401) {
+      logout();
+    }
+  } finally {
+    setLoading(false);
+  }
+}, [cookies, router, pathname, logout, setApiToken]);
+
+  // -----------------------------------------------------------
+  // LOGIN COM GOOGLE
+  // -----------------------------------------------------------
+  const loginWithGoogle = useCallback(async () => {
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`;
+  }, []);
+
+  const registerWithGoogle = useCallback(async () => {
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=register`;
+  }, []);
+
+  // -----------------------------------------------------------
+  // CALLBACK GOOGLE + INICIALIZAÇÃO
+  // -----------------------------------------------------------
   useEffect(() => {
-    // Handle Google callback + initialization once.
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    const handle = async () => {
+    const handleGoogleCallback = async () => {
       const params = new URLSearchParams(window.location.search);
       const tokenFromGoogle = params.get("token");
-      const state = params.get("state");
+      //const state = params.get("state");
       const messageCode = params.get("message_code");
 
+      // Limpa a URL antes de qualquer coisa
+      if (window.location.search) router.replace(pathname);
+
+      // ⚠️ Mensagens de erro
       if (messageCode) {
-        if (messageCode === "PENDING_APPROVAL" || messageCode === "REGISTER_PENDING_APPROVAL") {
-          setGoogleMessage({
-            code: messageCode,
-            message: "O seu registo foi criado. Aguarde a aprovação do administrador.",
-          });
-        } else {
-          setGoogleMessage({ code: "ERROR", message: "Ocorreu um erro no registo social." });
-        }
+        const messages: Record<string, string> = {
+          PENDING_APPROVAL: "O seu registo foi criado. Aguarde a aprovação do administrador.",
+          REGISTER_PENDING_APPROVAL: "Aguardando aprovação do administrador.",
+        };
+        setGoogleMessage({ code: messageCode, message: messages[messageCode] || "Erro no registo social." });
         router.replace("/login");
         setLoading(false);
         return;
       }
 
-      if (tokenFromGoogle && state) {
+      // ✅ Token vindo do Google
+      if (tokenFromGoogle) {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
         cookies.set("token", tokenFromGoogle, { path: "/", expires: expirationDate });
         localStorage.setItem("token", tokenFromGoogle);
         setApiToken(tokenFromGoogle);
 
-        if (state === "incomplete") {
-          router.replace("/complete-registration");
-          setLoading(false);
-          return;
-        } else if (state === "complete") {
-          await fetchLoggedUser();
-          setLoading(false);
-          return;
-        } else {
-          router.replace("/login?error=estado_desconhecido");
-          setLoading(false);
-          return;
-        }
+        await fetchLoggedUser();
+        return;
       }
 
+      // Caso normal (sem callback Google)
       await fetchLoggedUser();
     };
 
-    handle();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cookies, fetchLoggedUser, router, setApiToken]);
+    handleGoogleCallback();
+  }, [cookies, fetchLoggedUser, router, pathname, setApiToken]);
 
   if (loading) return <Loader />;
 
