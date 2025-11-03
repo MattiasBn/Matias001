@@ -89,10 +89,14 @@ export default function CompletarRegistroPage() {
     }
 
     // Se conta Google já completou o perfil → dashboard
-    if (user.is_profile_complete) {
-      router.replace(`/dashboard/${user.role || ""}`);
-      return;
-    }
+    
+   // ✅ Se perfil já estiver completo, vai para o dashboard
+if (user?.is_profile_complete === true) {
+  console.log("✅ Perfil completo detectado, redirecionando para dashboard...");
+  router.push(`/dashboard/${user.role}`);
+  return;
+}
+
   }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

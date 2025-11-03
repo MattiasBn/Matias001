@@ -261,11 +261,12 @@ public function handleGoogleCallbackWeb(Request $request)
             'email'     => $socialiteUser->getEmail(),
             'name'      => $socialiteUser->getName(),
             'google_id' => $socialiteUser->getId(),
+            'photo'     => $socialiteUser->getAvatar(),
             'password'  => null,
             'telefone'  => null,
             'confirmar' => false, // aguardando aprovação
             'role'      => 'funcionario',
-            'photo'     => $socialiteUser->getAvatar(),
+           
         ]);
 
         // Redireciona com aviso
