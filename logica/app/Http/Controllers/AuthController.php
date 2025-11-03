@@ -334,22 +334,23 @@ public function completeRegistration(Request $request)
     $user->update([
         'telefone' => $request->telefone,
         'password' => Hash::make($request->password),
+
     ]);
-
-    $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
     
-    return response()->json([
-        'message' => 'Perfil completo',
-        'user' => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'google_id' => $user->google_id,
-            'is_profile_complete' => true, // 🔥 força atualização
-        ]
-    ]);
-}
+$token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
+return response()->json([
+    'message' => 'Perfil completo',
+    'user' => [
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'google_id' => $user->google_id,
+        'telefone' => $user->telefone,
+        'role' => $user->role,
+        'is_profile_complete' => true,
+    ],
+    'access_token' => $token, // 🔥 ESSA LINHA É FUNDAMENTAL
+]);
 
 }
