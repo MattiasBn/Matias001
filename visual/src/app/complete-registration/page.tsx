@@ -41,8 +41,7 @@ import {
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  // ✅ peguei fetchLoggedUser também (útil se o backend não retornar token)
-  const { user, login, fetchLoggedUser, loading: authLoading } = useAuth();
+  const { user, login, loading: authLoading, fetchLoggedUser } = useAuth();
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -54,12 +53,7 @@ export default function CompletarRegistroPage() {
 
   const formVariants: Variants = {
     hidden: { opacity: 0, y: -20, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { duration: 0.6, ease: "easeOut" },
-    },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
   };
 
   const validatePassword = (pwd: string) => {
@@ -73,7 +67,7 @@ export default function CompletarRegistroPage() {
     setIsPasswordSecure(validatePassword(value));
   };
 
-  // Proteção: só contas Google incompletas podem ver esta página
+  // proteção: só contas google incompletas ficam aqui
   useEffect(() => {
     if (authLoading) return;
 
@@ -82,18 +76,18 @@ export default function CompletarRegistroPage() {
       return;
     }
 
-    // Se NÃO for conta Google → dashboard direto
+    // se não for conta google, sai
     if (!user.google_id) {
       router.replace(`/dashboard/${user.role || ""}`);
       return;
     }
 
-    // Se perfil Google já estiver completo → dashboard
+    // se já completou -> dashboard
     if (user.is_profile_complete) {
       router.replace(`/dashboard/${user.role || ""}`);
       return;
     }
-    // só permanece na página se for conta google e perfil incompleto
+    // se chegou aqui: é google + incompleto => fica na página
   }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,9 +102,7 @@ export default function CompletarRegistroPage() {
     }
 
     if (!validatePassword(password)) {
-      setError(
-        "A senha deve ter pelo menos 9 caracteres, incluindo uma letra maiúscula, minúscula e um número."
-      );
+      setError("A senha deve ter pelo menos 9 caracteres, incluindo uma letra maiúscula, minúscula e um número.");
       setLoading(false);
       return;
     }
@@ -122,53 +114,46 @@ export default function CompletarRegistroPage() {
     }
 
     try {
-      const payload = {
+      const response = await api.post("/complete-registration", {
         telefone,
         password,
         password_confirmation: passwordConfirmation,
-      };
+      });
 
-      const response = await api.post("/complete-registration", payload);
       const data = response.data;
 
-      // Caso o backend indique que precisa de aprovação pelo admin
-      if (data.requires_approval || data.status_code === "PENDING_APPROVAL") {
-        // Mostra uma mensagem clara ao utilizador e manda para login
-        setError(null);
-        // podes exibir um alert UI aqui em vez de router.replace se preferires
-        router.replace("/login?message=awaiting_approval");
-        setLoading(false);
-        return;
-      }
-
-      // O backend pode devolver token em `access_token` ou em `token`
-      const token = data.access_token || data.token || null;
-
-      if (token && data.user) {
-        // Guarda token localmente (AuthContext.login já também guarda)
-        login(token, data.user);
-        // Depois de login, redireciona para o dashboard adequado
-        router.replace(`/dashboard/${data.user.role || ""}`);
-        setLoading(false);
-        return;
-      }
-
-      // Se não veio token, mas operação OK, tentamos forçar um refresh do user
-      if (fetchLoggedUser) {
+      // Se o backend devolveu token + user — usa-os
+      if (data.access_token || data.token) {
+        const token = data.access_token || data.token;
+        // Atualiza contexto e headers
+        login(token, data.user || user!);
+        // garante headers e storage
+        localStorage.setItem("token", token);
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      } else if (data.user) {
+        // backend devolveu apenas user — força fetch
         await fetchLoggedUser();
-        // ler user atualizado do localStorage/context
-        const stored = localStorage.getItem("user");
-        const freshUser = stored ? JSON.parse(stored) : null;
-        if (freshUser) {
-          router.replace(`/dashboard/${freshUser.role || ""}`);
-          setLoading(false);
-          return;
-        }
       }
 
-      // fallback (se nada anterior funcionou)
-      setError("Registro completo, mas não foi possível autenticar automaticamente. Faça login.");
-      router.replace("/login");
+      // garante que o perfil no backend está correto antes de redirecionar
+      const meResp = await api.get("/me");
+      const freshUser = meResp.data;
+      login(localStorage.getItem("token") || "", freshUser);
+
+      // redireciona para o dashboard do role
+      let dashboard = "/dashboard";
+      switch (freshUser.role) {
+        case "administrador":
+          dashboard = "/dashboard/admin";
+          break;
+        case "funcionario":
+          dashboard = "/dashboard/funcionario";
+          break;
+        case "gerente":
+          dashboard = "/dashboard/gerente";
+          break;
+      }
+      router.replace(dashboard);
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
       const apiMessage = axiosError.response?.data?.message;
@@ -187,32 +172,20 @@ export default function CompletarRegistroPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={formVariants}
-        className="w-full max-w-sm md:max-w-md lg:max-w-lg"
-      >
+      <motion.div initial="hidden" animate="visible" variants={formVariants} className="w-full max-w-sm md:max-w-md lg:max-w-lg">
         <Card className="shadow-2xl rounded-xl">
           <CardHeader className="p-6 text-center">
-            <CardTitle className="text-3xl font-bold">
-              Quase lá, {user?.name.split(" ")[0] || "Usuário"}!
-            </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
-              Para sua segurança, defina uma senha e um telefone de contacto.
-            </CardDescription>
+            <CardTitle className="text-3xl font-bold">Quase lá, {user?.name.split(" ")[0] || "Usuário"}!</CardTitle>
+            <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">Para sua segurança, defina uma senha e um telefone de contacto.</CardDescription>
           </CardHeader>
-
           <CardContent className="p-6">
             {error && (
               <Alert variant="destructive" className="mb-4">
-                <AlertTitle>Erro / Informação</AlertTitle>
+                <AlertTitle>Erro ao continuar</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Telefone */}
               <div>
                 <Label htmlFor="telefone" className="flex items-center gap-2 mb-1">
                   <Phone className="h-4 w-4" /> Telefone
@@ -221,86 +194,31 @@ export default function CompletarRegistroPage() {
                       <TooltipTrigger asChild>
                         <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Seu número de telefone completo, incluindo o código do país (Angola é o padrão).</p>
-                      </TooltipContent>
+                      <TooltipContent><p>Seu número de telefone completo, incluindo o código do país (Angola é o padrão).</p></TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </Label>
-                <PhoneInput
-                  country="ao"
-                  value={telefone}
-                  onChange={setTelefone}
-                  inputClass="!w-full !h-10 !rounded-md !border px-3 text-sm !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white"
-                  dropdownClass="!bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !rounded-md shadow-lg"
-                  placeholder="Número de telefone"
-                />
+                <PhoneInput country="ao" value={telefone} onChange={setTelefone} inputClass="!w-full !h-10 !rounded-md !border px-3 text-sm !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white" dropdownClass="!bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !rounded-md shadow-lg" placeholder="Número de telefone" />
               </div>
 
-              {/* Senha */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="h-4 w-4" /> Senha
-                </Label>
+                <Label htmlFor="password" className="flex items-center gap-2"><Lock className="h-4 w-4" /> Senha</Label>
                 <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Sua nova senha"
-                    value={password}
-                    onChange={handlePasswordChange}
-                    className={!isPasswordSecure && password.length > 0 ? "border-red-500" : ""}
-                    required
-                  />
-                  {password.length > 0 && (
-                    <span className="absolute right-8 top-1/2 -translate-y-1/2">
-                      <CheckCircle className={`h-4 w-4 ${isPasswordSecure ? "text-green-500" : "text-gray-400"}`} />
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Sua nova senha" value={password} onChange={handlePasswordChange} className={!isPasswordSecure && password.length > 0 ? "border-red-500" : ""} required />
+                  {password.length > 0 && (<span className="absolute right-8 top-1/2 -translate-y-1/2"><CheckCircle className={`h-4 w-4 ${isPasswordSecure ? "text-green-500" : "text-gray-400"}`} /></span>)}
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
                 </div>
-                <p className={`text-xs mt-1 ${isPasswordSecure ? "text-green-500" : "text-gray-500"}`}>
-                  Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
-                </p>
+                <p className={`text-xs mt-1 ${isPasswordSecure ? "text-green-500" : "text-gray-500"}`}>Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.</p>
               </div>
 
-              {/* Confirmar Senha */}
               <div className="space-y-2">
-                <Label htmlFor="passwordConfirmation" className="flex items-center gap-2">
-                  <Lock className="h-4 w-4" /> Confirmar Senha
-                </Label>
-                <Input
-                  id="passwordConfirmation"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Confirme sua nova senha"
-                  value={passwordConfirmation}
-                  onChange={(e) => setPasswordConfirmation(e.target.value)}
-                  className={passwordConfirmation.length > 0 && password !== passwordConfirmation ? "border-red-500" : ""}
-                  required
-                />
-                {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
-                  <p className="text-red-500 text-sm mt-1">As senhas não coincidem.</p>
-                )}
+                <Label htmlFor="passwordConfirmation" className="flex items-center gap-2"><Lock className="h-4 w-4" /> Confirmar Senha</Label>
+                <Input id="passwordConfirmation" type={showPassword ? "text" : "password"} placeholder="Confirme sua nova senha" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.target.value)} className={passwordConfirmation.length > 0 && password !== passwordConfirmation ? "border-red-500" : ""} required />
+                {passwordConfirmation.length > 0 && password !== passwordConfirmation && (<p className="text-red-500 text-sm mt-1">As senhas não coincidem.</p>)}
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5}
-              >
-                {loading ? (
-                  <>
-                    <ButtonLoader /> Aguarde Por Favor...
-                  </>
-                ) : (
-                  "Completar Registro"
-                )}
+              <Button type="submit" className="w-full" disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5}>
+                {loading ? (<><ButtonLoader /> Aguarde Por Favor...</>) : ("Completar Registro")}
               </Button>
             </form>
           </CardContent>
