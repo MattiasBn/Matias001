@@ -231,7 +231,7 @@ class AuthController extends Controller
     }
 
     // Dentro da classe AuthController
-public function handleGoogleCallbackWeb(Request $request)
+    public function handleGoogleCallbackWeb(Request $request)
 {
     $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
     $state = $request->query('state', 'login');
@@ -242,21 +242,14 @@ public function handleGoogleCallbackWeb(Request $request)
         return redirect()->away("{$frontendUrl}/auth/callback?error_code=google_callback");
     }
 
-    // Procura usuário existente pelo e-mail
     $user = User::where('email', $socialiteUser->getEmail())->first();
 
-    /**
-     * =========================================================
-     * A. REGISTO (CRIAR CONTA NOVA)
-     * =========================================================
-     */
+    // 🔹 A. REGISTO
     if ($state === 'register') {
         if ($user) {
-            // Já existe — redireciona para login
             return redirect()->away("{$frontendUrl}/login?error=email_existente");
         }
 
-        // Cria conta nova, pendente de aprovação
         $user = User::create([
             'email'     => $socialiteUser->getEmail(),
             'name'      => $socialiteUser->getName(),
@@ -265,45 +258,38 @@ public function handleGoogleCallbackWeb(Request $request)
             'email_verified_at'=>now(),
             'password'  => null,
             'telefone'  => null,
-            'confirmar' => false, // aguardando aprovação
+            'confirmar' => false,
             'role'      => 'funcionario',
-           
         ]);
 
-        // Redireciona com aviso
         return redirect()->away("{$frontendUrl}/login?message_code=REGISTER_PENDING_APPROVAL");
     }
 
-    /**
-     * =========================================================
-     * B. LOGIN (ACESSO A CONTA EXISTENTE)
-     * =========================================================
-     */
+    // 🔹 B. LOGIN
     if (!$user) {
         return redirect()->away("{$frontendUrl}/login?error=user_not_found");
     }
 
-    // 1️⃣ Verifica se o admin já aprovou
     if (!$user->confirmar) {
         return redirect()->away("{$frontendUrl}/login?message_code=PENDING_APPROVAL");
     }
 
-    // 2️⃣ Revoga tokens antigos
-    $user->tokens()->delete();
+    // Atualiza foto caso esteja vazia
+    if (!$user->photo && $socialiteUser->getAvatar()) {
+        $user->update(['photo' => $socialiteUser->getAvatar()]);
+    }
 
-    // 3️⃣ Cria novo token com o role do usuário
+    // Revoga tokens antigos e cria novo
+    $user->tokens()->delete();
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-    // 4️⃣ Verifica se o perfil está completo (senha + telefone)
+    // Verifica perfil completo
     if (!$user->is_profile_complete) {
-        // Perfil incompleto → redireciona para completar registo
         return redirect()->away("{$frontendUrl}/auth/callback?token={$token}&state=incomplete");
     }
 
-    // 5️⃣ Perfil completo → redireciona para o dashboard normal
     return redirect()->away("{$frontendUrl}/auth/callback?token={$token}&state=complete");
 }
-
     
  // Dentro da classe AuthController
 public function completeRegistration(Request $request)
