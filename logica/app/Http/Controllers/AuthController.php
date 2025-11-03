@@ -220,7 +220,7 @@ class AuthController extends Controller
  * Redireciona para o Google (web flow)
  */
 
-public function redirectToGoogleWeb(Request $request)
+   public function redirectToGoogleWeb(Request $request)
     {
         $state = $request->query('state', 'login');
 
