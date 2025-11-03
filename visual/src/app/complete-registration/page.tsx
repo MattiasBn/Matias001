@@ -41,7 +41,8 @@ import {
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const { user, login, loading: authLoading } = useAuth();
+  // ✅ peguei fetchLoggedUser também (útil se o backend não retornar token)
+  const { user, login, fetchLoggedUser, loading: authLoading } = useAuth();
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -72,31 +73,27 @@ export default function CompletarRegistroPage() {
     setIsPasswordSecure(validatePassword(value));
   };
 
-  // ✅ Apenas contas Google incompletas podem ver esta página
+  // Proteção: só contas Google incompletas podem ver esta página
   useEffect(() => {
     if (authLoading) return;
 
-    // Se não estiver logado → login
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    // Se NÃO for conta Google → dashboard
+    // Se NÃO for conta Google → dashboard direto
     if (!user.google_id) {
       router.replace(`/dashboard/${user.role || ""}`);
       return;
     }
 
-    // Se conta Google já completou o perfil → dashboard
-    
-   // ✅ Se perfil já estiver completo, vai para o dashboard
-if (user?.is_profile_complete === true) {
-  console.log("✅ Perfil completo detectado, redirecionando para dashboard...");
-  router.push(`/dashboard/${user.role}`);
-  return;
-}
-
+    // Se perfil Google já estiver completo → dashboard
+    if (user.is_profile_complete) {
+      router.replace(`/dashboard/${user.role || ""}`);
+      return;
+    }
+    // só permanece na página se for conta google e perfil incompleto
   }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,30 +122,53 @@ if (user?.is_profile_complete === true) {
     }
 
     try {
-      const response = await api.post("/complete-registration", {
+      const payload = {
         telefone,
         password,
         password_confirmation: passwordConfirmation,
-      });
+      };
 
+      const response = await api.post("/complete-registration", payload);
       const data = response.data;
 
-      // 🔥 Atualiza token e user imediatamente
-      if (data.access_token && data.user) {
-        login(data.access_token, data.user);
+      // Caso o backend indique que precisa de aprovação pelo admin
+      if (data.requires_approval || data.status_code === "PENDING_APPROVAL") {
+        // Mostra uma mensagem clara ao utilizador e manda para login
+        setError(null);
+        // podes exibir um alert UI aqui em vez de router.replace se preferires
+        router.replace("/login?message=awaiting_approval");
+        setLoading(false);
+        return;
       }
 
-      // ✅ Busca o user atualizado do backend
-      const meResponse = await api.get("/me");
-      const freshUser = meResponse.data;
+      // O backend pode devolver token em `access_token` ou em `token`
+      const token = data.access_token || data.token || null;
 
-      // Atualiza contexto
-      login(data.access_token || localStorage.getItem("token"), freshUser);
+      if (token && data.user) {
+        // Guarda token localmente (AuthContext.login já também guarda)
+        login(token, data.user);
+        // Depois de login, redireciona para o dashboard adequado
+        router.replace(`/dashboard/${data.user.role || ""}`);
+        setLoading(false);
+        return;
+      }
 
-      // Aguarda um pequeno delay para evitar loop
-      setTimeout(() => {
-        router.replace(`/dashboard/${freshUser.role || ""}`);
-      }, 400);
+      // Se não veio token, mas operação OK, tentamos forçar um refresh do user
+      if (fetchLoggedUser) {
+        await fetchLoggedUser();
+        // ler user atualizado do localStorage/context
+        const stored = localStorage.getItem("user");
+        const freshUser = stored ? JSON.parse(stored) : null;
+        if (freshUser) {
+          router.replace(`/dashboard/${freshUser.role || ""}`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // fallback (se nada anterior funcionou)
+      setError("Registro completo, mas não foi possível autenticar automaticamente. Faça login.");
+      router.replace("/login");
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
       const apiMessage = axiosError.response?.data?.message;
@@ -156,9 +176,7 @@ if (user?.is_profile_complete === true) {
       if (apiMessage?.includes("The telefone has already been taken.")) {
         setError("O número de telefone já está a ser usado por outro usuário.");
       } else {
-        setError(
-          apiMessage || "Erro ao completar registro. Verifique seus dados."
-        );
+        setError(apiMessage || "Erro ao completar registro. Verifique seus dados.");
       }
     } finally {
       setLoading(false);
@@ -188,7 +206,7 @@ if (user?.is_profile_complete === true) {
           <CardContent className="p-6">
             {error && (
               <Alert variant="destructive" className="mb-4">
-                <AlertTitle>Erro ao continuar</AlertTitle>
+                <AlertTitle>Erro / Informação</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -196,10 +214,7 @@ if (user?.is_profile_complete === true) {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Telefone */}
               <div>
-                <Label
-                  htmlFor="telefone"
-                  className="flex items-center gap-2 mb-1"
-                >
+                <Label htmlFor="telefone" className="flex items-center gap-2 mb-1">
                   <Phone className="h-4 w-4" /> Telefone
                   <TooltipProvider>
                     <Tooltip>
@@ -207,10 +222,7 @@ if (user?.is_profile_complete === true) {
                         <Info className="ml-2 h-3 w-3 text-gray-400 cursor-pointer" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>
-                          Seu número de telefone completo, incluindo o código do
-                          país (Angola é o padrão).
-                        </p>
+                        <p>Seu número de telefone completo, incluindo o código do país (Angola é o padrão).</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -237,22 +249,12 @@ if (user?.is_profile_complete === true) {
                     placeholder="Sua nova senha"
                     value={password}
                     onChange={handlePasswordChange}
-                    className={
-                      !isPasswordSecure && password.length > 0
-                        ? "border-red-500"
-                        : ""
-                    }
+                    className={!isPasswordSecure && password.length > 0 ? "border-red-500" : ""}
                     required
                   />
                   {password.length > 0 && (
                     <span className="absolute right-8 top-1/2 -translate-y-1/2">
-                      <CheckCircle
-                        className={`h-4 w-4 ${
-                          isPasswordSecure
-                            ? "text-green-500"
-                            : "text-gray-400"
-                        }`}
-                      />
+                      <CheckCircle className={`h-4 w-4 ${isPasswordSecure ? "text-green-500" : "text-gray-400"}`} />
                     </span>
                   )}
                   <button
@@ -260,29 +262,17 @@ if (user?.is_profile_complete === true) {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p
-                  className={`text-xs mt-1 ${
-                    isPasswordSecure ? "text-green-500" : "text-gray-500"
-                  }`}
-                >
-                  Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e
-                  um número.
+                <p className={`text-xs mt-1 ${isPasswordSecure ? "text-green-500" : "text-gray-500"}`}>
+                  Mínimo 9 caracteres, com uma letra maiúscula, uma minúscula e um número.
                 </p>
               </div>
 
               {/* Confirmar Senha */}
               <div className="space-y-2">
-                <Label
-                  htmlFor="passwordConfirmation"
-                  className="flex items-center gap-2"
-                >
+                <Label htmlFor="passwordConfirmation" className="flex items-center gap-2">
                   <Lock className="h-4 w-4" /> Confirmar Senha
                 </Label>
                 <Input
@@ -291,31 +281,18 @@ if (user?.is_profile_complete === true) {
                   placeholder="Confirme sua nova senha"
                   value={passwordConfirmation}
                   onChange={(e) => setPasswordConfirmation(e.target.value)}
-                  className={
-                    passwordConfirmation.length > 0 &&
-                    password !== passwordConfirmation
-                      ? "border-red-500"
-                      : ""
-                  }
+                  className={passwordConfirmation.length > 0 && password !== passwordConfirmation ? "border-red-500" : ""}
                   required
                 />
-                {passwordConfirmation.length > 0 &&
-                  password !== passwordConfirmation && (
-                    <p className="text-red-500 text-sm mt-1">
-                      As senhas não coincidem.
-                    </p>
-                  )}
+                {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
+                  <p className="text-red-500 text-sm mt-1">As senhas não coincidem.</p>
+                )}
               </div>
 
               <Button
                 type="submit"
                 className="w-full"
-                disabled={
-                  loading ||
-                  !isPasswordSecure ||
-                  password !== passwordConfirmation ||
-                  telefone.length < 5
-                }
+                disabled={loading || !isPasswordSecure || password !== passwordConfirmation || telefone.length < 5}
               >
                 {loading ? (
                   <>
