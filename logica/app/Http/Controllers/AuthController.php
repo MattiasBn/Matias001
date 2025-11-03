@@ -336,7 +336,7 @@ public function completeRegistration(Request $request)
         'password' => Hash::make($request->password),
 
     ]);
-    
+
 $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
 return response()->json([
@@ -352,5 +352,7 @@ return response()->json([
     ],
     'access_token' => $token, // 🔥 ESSA LINHA É FUNDAMENTAL
 ]);
+
+}
 
 }
