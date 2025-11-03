@@ -262,6 +262,7 @@ public function handleGoogleCallbackWeb(Request $request)
             'name'      => $socialiteUser->getName(),
             'google_id' => $socialiteUser->getId(),
             'photo'     => $socialiteUser->getAvatar(),
+            'email_verified_at'=>now(),
             'password'  => null,
             'telefone'  => null,
             'confirmar' => false, // aguardando aprovação
@@ -341,7 +342,7 @@ public function completeRegistration(Request $request)
 $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
   return response()->json([
         'message' => 'Perfil completo',
-        
+
         'token'   => $token, // ✅ devolve o novo token
         'user' => [
             'id' => $user->id,
