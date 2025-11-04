@@ -41,7 +41,7 @@ import {
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const { user, login, loading: authLoading, fetchLoggedUser } = useAuth();
+  const { user, loading: authLoading, fetchLoggedUser } = useAuth();
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -84,7 +84,20 @@ export default function CompletarRegistroPage() {
 
     // se já completou -> dashboard
     if (user.is_profile_complete) {
-      router.replace(`/dashboard/${user.role || ""}`);
+      // Esta é a única linha responsável pelo redirecionamento após a atualização do contexto.
+      let dashboard = "/dashboard";
+      switch (user.role) {
+        case "administrador":
+          dashboard = "/dashboard/admin";
+          break;
+        case "funcionario":
+          dashboard = "/dashboard/funcionario";
+          break;
+        case "gerente":
+          dashboard = "/dashboard/gerente";
+          break;
+      }
+      router.replace(dashboard);
       return;
     }
     // se chegou aqui: é google + incompleto => fica na página
@@ -122,38 +135,18 @@ export default function CompletarRegistroPage() {
 
       const data = response.data;
 
-      // Se o backend devolveu token + user — usa-os
+      // 1. Atualizar o token se o backend o enviou (para o api.defaults e localStorage)
       if (data.access_token || data.token) {
         const token = data.access_token || data.token;
-        // Atualiza contexto e headers
-        login(token, data.user || user!);
-        // garante headers e storage
         localStorage.setItem("token", token);
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      } else if (data.user) {
-        // backend devolveu apenas user — força fetch
-        await fetchLoggedUser();
       }
 
-      // garante que o perfil no backend está correto antes de redirecionar
-      const meResp = await api.get("/me");
-      const freshUser = meResp.data;
-      login(localStorage.getItem("token") || "", freshUser);
+      // 2. CORREÇÃO: Forçar a busca do usuário logado. fetchLoggedUser()
+      // irá buscar o perfil completo e, ao chamar login() no contexto, 
+      // irá disparar o 'useEffect' acima para fazer o redirecionamento.
+      await fetchLoggedUser();
 
-      // redireciona para o dashboard do role
-      let dashboard = "/dashboard";
-      switch (freshUser.role) {
-        case "administrador":
-          dashboard = "/dashboard/admin";
-          break;
-        case "funcionario":
-          dashboard = "/dashboard/funcionario";
-          break;
-        case "gerente":
-          dashboard = "/dashboard/gerente";
-          break;
-      }
-      router.replace(dashboard);
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
       const apiMessage = axiosError.response?.data?.message;

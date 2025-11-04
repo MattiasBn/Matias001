@@ -292,61 +292,51 @@ class AuthController extends Controller
 }
     
  // Dentro da classe AuthController
-public function completeRegistration(Request $request)
-{
-    /** @var \App\Models\User $user */
-    $user = $request->user();
+ public function completeRegistration(Request $request)
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
 
-    if (!$user) {
-        return response()->json(['message' => 'Usuário não autenticado ou token inválido.'], 401);
-    }
+        if (!$user) {
+            return response()->json(['message' => 'Usuário não autenticado ou token inválido.'], 401);
+        }
 
-    // ✅ Só Google Users podem completar
-    if (!$user->google_id) {
-        return response()->json(['message' => 'Esta conta já está completa.'], 403);
-    }
+        // ✅ Se já completou o perfil, manda direto para o sucesso (isto corrige o loop no refresh do dashboard)
+        if ($user->telefone && $user->password) {
+            return response()->json([
+                'message' => 'Perfil já completado. Redirecionando.',
+                'token' => $user->createToken('auth_token', [$user->role])->plainTextToken,
+                'user' => $user, // Devolve o objeto completo
+            ], 200);
+        }
 
-    // ✅ Se já tiver telefone/senha, bloqueia nova tentativa
-    if ($user->telefone && $user->password) {
+        // ✅ Só Google Users podem completar (esta checagem está correta)
+        if (!$user->google_id) {
+             // Caso a conta seja de login normal
+             return response()->json(['message' => 'Esta conta já está completa.'], 403);
+        }
+        
+        $request->validate([
+            'telefone' => 'required|string|max:20',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user->update([
+            'telefone' => $request->telefone,
+            'password' => Hash::make($request->password),
+            'confirmar' => true, // OBRIGATÓRIO: Garante que o campo de ativação vai para TRUE
+        ]);
+
+        $user->refresh(); // 🔑 CRÍTICO: Recarrega o modelo para que o Accessor 'is_profile_complete' seja TRUE
+
+        $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
+        // 🎯 Resposta JSON CORRIGIDA (UserResource seria melhor, mas manteremos o array plano)
         return response()->json([
-            'message' => 'Perfil já completado anteriormente.',
-            'is_profile_complete' => true,
+            'message' => 'Perfil completo. Redirecionando.',
+            'token' => $token, 
+            'user' => $user, // DEVOLVE O OBJETO COMPLETO E ATUALIZADO
         ], 200);
     }
-
-    $request->validate([
-        'telefone' => 'required|string|max:20',
-        'password' => 'required|string|min:8|confirmed',
-    ]);
-
-    $user->update([
-        'telefone' => $request->telefone,
-        'password' => Hash::make($request->password),
-        'confirmar' => true,
-    ]);
-
-    $user->refresh();
-
-$token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-  return response()->json([
-        'message' => 'Perfil completo',
-
-        'token'   => $token, // ✅ devolve o novo token
-        'user' => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'google_id' => $user->google_id,
-            'photo' => $user->photo,
-            'role' => $user->role,
-            'telefone' => $user->telefone,
-            'is_profile_complete' => true,
-            'confirmar' => $user->confirmar,
-            'user'      => $user,
-        ],
-    ]);
-
-}
 
 }
