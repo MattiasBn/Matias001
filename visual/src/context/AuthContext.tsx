@@ -74,7 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("user");
       setUser(null);
       setApiToken(null);
-      router.replace("/login");
+      
+      // FIX: Redirecionamento forçado com setTimeout para garantir que ocorre após o estado ser limpo
+      setTimeout(() => {
+        router.replace("/login");
+      }, 0);
     }
   }, [cookies, router, setApiToken]);
 
@@ -98,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setApiToken(token);
       localStorage.setItem("user", JSON.stringify(userData));
-      setUser(userData);
+      setUser(userData); // Estado atualizado
 
       // 🚀 Redirecionamento conforme role
       const rolePath: Record<string, string> = {
@@ -107,88 +111,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         gerente: "/dashboard/gerente",
       };
 
-      router.push(rolePath[userData.role] || "/dashboard");
+      // FIX: Adicionar setTimeout para garantir que a navegação ocorre após a atualização do estado
+      setTimeout(() => {
+        router.push(rolePath[userData.role] || "/dashboard");
+      }, 0);
     },
     [cookies, router, setApiToken]
   );
 
   // -----------------------------------------------------------
-// FETCH DO UTILIZADOR LOGADO (corrigido)
-// -----------------------------------------------------------
-const fetchLoggedUser = useCallback(async () => {
-  setLoading(true);
+  // FETCH DO UTILIZADOR LOGADO (corrigido)
+  // -----------------------------------------------------------
+  const fetchLoggedUser = useCallback(async () => {
+    setLoading(true);
 
-  const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
+    const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
 
-  if (!tokenFromStorage) {
-    setUser(null);
-    setLoading(false);
-    return;
-  }
-
-  setApiToken(tokenFromStorage);
-
-  try {
-    const userData = await api.get<MeResponse>("/me").then((res) => res.data);
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-
-    // 🚫 Usuário não confirmado — volta para login
-    if (!userData.confirmar) {
-      logout();
-      router.replace("/login?status_code=PENDING_APPROVAL");
-      return;
-    }
-    
-    // 🔧 Corrige o path do dashboard de acordo com o role
-    let dashboardPath = "/dashboard";
-
-    switch (userData.role) {
-      case "administrador":
-        dashboardPath = "/dashboard/admin";
-        break;
-      case "funcionario":
-        dashboardPath = "/dashboard/funcionario";
-        break;
-      case "gerente":
-        dashboardPath = "/dashboard/gerente";
-        break;
-    }
-
-    // 🚀 Se já completou o perfil e está em /complete-registration, manda pro dashboard
-    if (pathname === "/complete-registration" && userData.is_profile_complete) {
-      router.replace(dashboardPath);
+    if (!tokenFromStorage) {
+      setUser(null);
+      setLoading(false);
       return;
     }
 
+    setApiToken(tokenFromStorage);
 
-    // ✅ Contas Google precisam completar perfil
+    try {
+      const userData = await api.get<MeResponse>("/me").then((res) => res.data);
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
 
-
-    if (userData.google_id && !userData.is_profile_complete) {
-      if (pathname !== "/complete-registration") {
-        router.replace("/complete-registration");
+      // 🚫 Usuário não confirmado — volta para login
+      if (!userData.confirmar) {
+        logout(); // 'logout' já tem o setTimeout para /login
+        return;
       }
-      return;
-    }
+      
+      // 🔧 Corrige o path do dashboard de acordo com o role
+      let dashboardPath = "/dashboard";
 
+      switch (userData.role) {
+        case "administrador":
+          dashboardPath = "/dashboard/admin";
+          break;
+        case "funcionario":
+          dashboardPath = "/dashboard/funcionario";
+          break;
+        case "gerente":
+          dashboardPath = "/dashboard/gerente";
+          break;
+      }
 
-    // 🚀 Redirecionamento automático se estiver em login ou root
-    if (
-      pathname.startsWith("/login") ||
-      pathname === "/" ||
-      pathname === "/register"
-    ) {
-      router.replace(dashboardPath);
+      // 🚀 Se já completou o perfil e está em /complete-registration, manda pro dashboard
+      if (pathname === "/complete-registration" && userData.is_profile_complete) {
+        setTimeout(() => { // FIX: Adicionado setTimeout
+          router.replace(dashboardPath);
+        }, 0);
+        return;
+      }
+
+      // ✅ Contas Google precisam completar perfil
+      if (userData.google_id && !userData.is_profile_complete) {
+        if (pathname !== "/complete-registration") {
+          setTimeout(() => { // FIX: Adicionado setTimeout
+            router.replace("/complete-registration");
+          }, 0);
+        }
+        return;
+      }
+
+      // 🚀 Redirecionamento automático se estiver em login ou root
+      if (
+        pathname.startsWith("/login") ||
+        pathname === "/" ||
+        pathname === "/register"
+      ) {
+        setTimeout(() => { // FIX: Adicionado setTimeout
+          router.replace(dashboardPath);
+        }, 0);
+      }
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        logout();
+      }
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    if (error instanceof AxiosError && error.response?.status === 401) {
-      logout();
-    }
-  } finally {
-    setLoading(false);
-  }
-}, [cookies, router, pathname, logout, setApiToken]);
+  }, [cookies, router, pathname, logout, setApiToken]);
 
   // -----------------------------------------------------------
   // LOGIN COM GOOGLE
@@ -212,7 +220,11 @@ const fetchLoggedUser = useCallback(async () => {
       const messageCode = params.get("message_code");
 
       // Limpa a URL antes de qualquer coisa
-      if (window.location.search) router.replace(pathname);
+      if (window.location.search) {
+        setTimeout(() => { // FIX: Adicionado setTimeout
+          router.replace(pathname);
+        }, 0);
+      }
 
       // ⚠️ Mensagens de erro
       if (messageCode) {
@@ -221,7 +233,7 @@ const fetchLoggedUser = useCallback(async () => {
           REGISTER_PENDING_APPROVAL: "Aguardando aprovação do administrador.",
         };
         setGoogleMessage({ code: messageCode, message: messages[messageCode] || "Erro no registo social." });
-        router.replace("/login");
+        router.replace("/login"); // Não precisa de setTimeout aqui, pois não estamos atualizando estado do user
         setLoading(false);
         return;
       }
@@ -234,7 +246,7 @@ const fetchLoggedUser = useCallback(async () => {
         localStorage.setItem("token", tokenFromGoogle);
         setApiToken(tokenFromGoogle);
 
-        await fetchLoggedUser();
+        await fetchLoggedUser(); // Este fetch já tem a lógica de navegação correta
         return;
       }
 
@@ -243,7 +255,8 @@ const fetchLoggedUser = useCallback(async () => {
     };
 
     handleGoogleCallback();
-  }, [cookies, fetchLoggedUser, router, pathname, setApiToken]);
+    // Adicionamos 'setApiToken' ao array de dependências, pois é usado no useEffect
+  }, [cookies, fetchLoggedUser, router, pathname, setApiToken]); 
 
   if (loading) return <Loader />;
 

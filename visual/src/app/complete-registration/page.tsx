@@ -41,7 +41,8 @@ import {
 
 export default function CompletarRegistroPage() {
   const router = useRouter();
-  const { user, loading: authLoading, fetchLoggedUser } = useAuth();
+  // user, login e authLoading são essenciais para o fluxo
+  const { user, login, loading: authLoading } = useAuth(); 
 
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [password, setPassword] = useState("");
@@ -67,7 +68,7 @@ export default function CompletarRegistroPage() {
     setIsPasswordSecure(validatePassword(value));
   };
 
-  // proteção: só contas google incompletas ficam aqui
+  // Proteção de rota (O useEffect no AuthProvider também fará isso)
   useEffect(() => {
     if (authLoading) return;
 
@@ -76,15 +77,8 @@ export default function CompletarRegistroPage() {
       return;
     }
 
-    // se não for conta google, sai
-    if (!user.google_id) {
-      router.replace(`/dashboard/${user.role || ""}`);
-      return;
-    }
-
-    // se já completou -> dashboard
+    // Se já completou -> dashboard (redundante mas seguro)
     if (user.is_profile_complete) {
-      // Esta é a única linha responsável pelo redirecionamento após a atualização do contexto.
       let dashboard = "/dashboard";
       switch (user.role) {
         case "administrador":
@@ -100,7 +94,6 @@ export default function CompletarRegistroPage() {
       router.replace(dashboard);
       return;
     }
-    // se chegou aqui: é google + incompleto => fica na página
   }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,17 +128,26 @@ export default function CompletarRegistroPage() {
 
       const data = response.data;
 
-      // 1. Atualizar o token se o backend o enviou (para o api.defaults e localStorage)
-      if (data.access_token || data.token) {
-        const token = data.access_token || data.token;
-        localStorage.setItem("token", token);
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      }
+      // 1. Obter o token (do backend ou do localStorage/context)
+      const token = data.access_token || data.token || localStorage.getItem("token") || "";
 
-      // 2. CORREÇÃO: Forçar a busca do usuário logado. fetchLoggedUser()
-      // irá buscar o perfil completo e, ao chamar login() no contexto, 
-      // irá disparar o 'useEffect' acima para fazer o redirecionamento.
-      await fetchLoggedUser();
+      // 2. Criar um objeto de usuário OTIMISTA e COMPLETO
+      // Isso é crucial para corrigir a dessincronização do backend/frontend.
+      const updatedUser = {
+          ...user!, // Assumimos que 'user' existe aqui, devido à proteção da rota
+          is_profile_complete: true, // Forçamos o status para TRUE no contexto
+          telefone: telefone, // Atualizamos o telefone no objeto
+          ...(data.user || {}) // Mesclamos quaisquer dados de usuário extras que o backend possa ter enviado
+      };
+
+      // 3. Chamar a função login() do contexto:
+      // A função 'login' é responsável por:
+      // a) Definir o token nos cookies/localStorage/headers.
+      // b) Definir o estado global 'user' (agora COMPLETO).
+      // c) Executar a lógica de redirecionamento imediato para o dashboard.
+      login(token, updatedUser);
+
+      // Não precisamos de fetchLoggedUser() aqui, pois login() faz o trabalho de atualização e navegação de forma mais síncrona.
 
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
