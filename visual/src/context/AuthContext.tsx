@@ -139,15 +139,7 @@ const fetchLoggedUser = useCallback(async () => {
       router.replace("/login?status_code=PENDING_APPROVAL");
       return;
     }
-
-    // ✅ Contas Google precisam completar perfil
-    if (userData.google_id && !userData.is_profile_complete) {
-      if (pathname !== "/complete-registration") {
-        router.replace("/complete-registration");
-      }
-      return;
-    }
-
+    
     // 🔧 Corrige o path do dashboard de acordo com o role
     let dashboardPath = "/dashboard";
 
@@ -168,6 +160,18 @@ const fetchLoggedUser = useCallback(async () => {
       router.replace(dashboardPath);
       return;
     }
+
+
+    // ✅ Contas Google precisam completar perfil
+
+
+    if (userData.google_id && !userData.is_profile_complete) {
+      if (pathname !== "/complete-registration") {
+        router.replace("/complete-registration");
+      }
+      return;
+    }
+
 
     // 🚀 Redirecionamento automático se estiver em login ou root
     if (

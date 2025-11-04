@@ -322,10 +322,13 @@ public function completeRegistration(Request $request)
     $user->update([
         'telefone' => $request->telefone,
         'password' => Hash::make($request->password),
-
+        'confirmar' => true,
     ]);
 
+    $user->refresh();
+
 $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+
   return response()->json([
         'message' => 'Perfil completo',
 
@@ -340,6 +343,7 @@ $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
             'telefone' => $user->telefone,
             'is_profile_complete' => true,
             'confirmar' => $user->confirmar,
+            'user'      => $user,
         ],
     ]);
 
