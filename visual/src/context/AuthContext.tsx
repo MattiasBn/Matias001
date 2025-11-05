@@ -74,11 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("user");
       setUser(null);
       setApiToken(null);
-      
-      // FIX: Redirecionamento forçado com setTimeout para garantir que ocorre após o estado ser limpo
-      setTimeout(() => {
-        router.replace("/login");
-      }, 0);
+      router.replace("/login");
     }
   }, [cookies, router, setApiToken]);
 
@@ -102,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setApiToken(token);
       localStorage.setItem("user", JSON.stringify(userData));
-      setUser(userData); // Estado atualizado
+      setUser(userData);
 
       // 🚀 Redirecionamento conforme role
       const rolePath: Record<string, string> = {
@@ -111,92 +107,88 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         gerente: "/dashboard/gerente",
       };
 
-      // FIX: Adicionar setTimeout para garantir que a navegação ocorre após a atualização do estado
-      setTimeout(() => {
-        router.push(rolePath[userData.role] || "/dashboard");
-      }, 0);
+      router.push(rolePath[userData.role] || "/dashboard");
     },
     [cookies, router, setApiToken]
   );
 
   // -----------------------------------------------------------
-  // FETCH DO UTILIZADOR LOGADO (corrigido)
-  // -----------------------------------------------------------
-  const fetchLoggedUser = useCallback(async () => {
-    setLoading(true);
+// FETCH DO UTILIZADOR LOGADO (corrigido)
+// -----------------------------------------------------------
+const fetchLoggedUser = useCallback(async () => {
+  setLoading(true);
 
-    const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
+  const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
 
-    if (!tokenFromStorage) {
-      setUser(null);
-      setLoading(false);
+  if (!tokenFromStorage) {
+    setUser(null);
+    setLoading(false);
+    return;
+  }
+
+  setApiToken(tokenFromStorage);
+
+  try {
+    const userData = await api.get<MeResponse>("/me").then((res) => res.data);
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    // 🚫 Usuário não confirmado — volta para login
+    if (!userData.confirmar) {
+      logout();
+      router.replace("/login?status_code=PENDING_APPROVAL");
+      return;
+    }
+    
+    // 🔧 Corrige o path do dashboard de acordo com o role
+    let dashboardPath = "/dashboard";
+
+    switch (userData.role) {
+      case "administrador":
+        dashboardPath = "/dashboard/admin";
+        break;
+      case "funcionario":
+        dashboardPath = "/dashboard/funcionario";
+        break;
+      case "gerente":
+        dashboardPath = "/dashboard/gerente";
+        break;
+    }
+
+    // 🚀 Se já completou o perfil e está em /complete-registration, manda pro dashboard
+    if (pathname === "/complete-registration" && userData.is_profile_complete) {
+      router.replace(dashboardPath);
       return;
     }
 
-    setApiToken(tokenFromStorage);
 
-    try {
-      const userData = await api.get<MeResponse>("/me").then((res) => res.data);
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
+    // ✅ Contas Google precisam completar perfil
 
-      // 🚫 Usuário não confirmado — volta para login
-      if (!userData.confirmar) {
-        logout(); // 'logout' já tem o setTimeout para /login
-        return;
-      }
-      
-      // 🔧 Corrige o path do dashboard de acordo com o role
-      let dashboardPath = "/dashboard";
 
-      switch (userData.role) {
-        case "administrador":
-          dashboardPath = "/dashboard/admin";
-          break;
-        case "funcionario":
-          dashboardPath = "/dashboard/funcionario";
-          break;
-        case "gerente":
-          dashboardPath = "/dashboard/gerente";
-          break;
+    if (userData.google_id && !userData.is_profile_complete) {
+      if (pathname !== "/complete-registration") {
+        router.replace("/complete-registration");
       }
-
-      // 🚀 Se já completou o perfil e está em /complete-registration, manda pro dashboard
-      if (pathname === "/complete-registration" && userData.is_profile_complete) {
-        setTimeout(() => { // FIX: Adicionado setTimeout
-          router.replace(dashboardPath);
-        }, 0);
-        return;
-      }
-
-      // ✅ Contas Google precisam completar perfil
-      if (userData.google_id && !userData.is_profile_complete) {
-        if (pathname !== "/complete-registration") {
-          setTimeout(() => { // FIX: Adicionado setTimeout
-            router.replace("/complete-registration");
-          }, 0);
-        }
-        return;
-      }
-
-      // 🚀 Redirecionamento automático se estiver em login ou root
-      if (
-        pathname.startsWith("/login") ||
-        pathname === "/" ||
-        pathname === "/register"
-      ) {
-        setTimeout(() => { // FIX: Adicionado setTimeout
-          router.replace(dashboardPath);
-        }, 0);
-      }
-    } catch (error) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        logout();
-      }
-    } finally {
-      setLoading(false);
+      return;
     }
-  }, [cookies, router, pathname, logout, setApiToken]);
+
+
+    // 🚀 Redirecionamento automático se estiver em login ou root
+    if (
+      pathname.startsWith("/login") ||
+      pathname === "/" ||
+      pathname === "/register"
+    ) {
+      router.replace(dashboardPath);
+    }
+  } catch (error) {
+    if (error instanceof AxiosError && error.response?.status === 401) {
+      logout();
+    }
+  } finally {
+    setLoading(false);
+  }
+}, [cookies, router, pathname, logout, setApiToken]);
 
   // -----------------------------------------------------------
   // LOGIN COM GOOGLE
@@ -220,11 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const messageCode = params.get("message_code");
 
       // Limpa a URL antes de qualquer coisa
-      if (window.location.search) {
-        setTimeout(() => { // FIX: Adicionado setTimeout
-          router.replace(pathname);
-        }, 0);
-      }
+      if (window.location.search) router.replace(pathname);
 
       // ⚠️ Mensagens de erro
       if (messageCode) {
@@ -233,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           REGISTER_PENDING_APPROVAL: "Aguardando aprovação do administrador.",
         };
         setGoogleMessage({ code: messageCode, message: messages[messageCode] || "Erro no registo social." });
-        router.replace("/login"); // Não precisa de setTimeout aqui, pois não estamos atualizando estado do user
+        router.replace("/login");
         setLoading(false);
         return;
       }
@@ -246,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("token", tokenFromGoogle);
         setApiToken(tokenFromGoogle);
 
-        await fetchLoggedUser(); // Este fetch já tem a lógica de navegação correta
+        await fetchLoggedUser();
         return;
       }
 
@@ -255,8 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     handleGoogleCallback();
-    // Adicionamos 'setApiToken' ao array de dependências, pois é usado no useEffect
-  }, [cookies, fetchLoggedUser, router, pathname, setApiToken]); 
+  }, [cookies, fetchLoggedUser, router, pathname, setApiToken]);
 
   if (loading) return <Loader />;
 
