@@ -147,6 +147,12 @@ export default function CompletarRegistroPage() {
       // c) Executar a lógica de redirecionamento imediato para o dashboard.
       login(token, updatedUser);
 
+
+    
+      
+      // ✅ recarrega o estado real do utilizador
+
+
       // Não precisamos de fetchLoggedUser() aqui, pois login() faz o trabalho de atualização e navegação de forma mais síncrona.
 
     } catch (err) {

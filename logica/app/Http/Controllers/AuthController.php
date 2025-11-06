@@ -321,6 +321,10 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
+
+$user->tokens()->delete(); // ✅ limpa tokens antigos
+
+
         $user->update([
             'telefone' => $request->telefone,
             'password' => Hash::make($request->password),
@@ -328,6 +332,9 @@ class AuthController extends Controller
         ]);
 
         $user->refresh(); // 🔑 CRÍTICO: Recarrega o modelo para que o Accessor 'is_profile_complete' seja TRUE
+ 
+        
+
 
         $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 

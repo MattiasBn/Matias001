@@ -115,10 +115,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // -----------------------------------------------------------
 // FETCH DO UTILIZADOR LOGADO (corrigido)
 // -----------------------------------------------------------
-const fetchLoggedUser = useCallback(async () => {
+// -----------------------------------------------------------
+// FETCH DO UTILIZADOR LOGADO (ajustado p/ Laravel Sanctum)
+// -----------------------------------------------------------
+// -----------------------------------------------------------
+// FETCH DO UTILIZADOR LOGADO (corrigido e adaptado para Google)
+// -----------------------------------------------------------
+// FETCH DO UTILIZADOR LOGADO (corrigido e adaptado para Google)
+// -----------------------------------------------------------
+
+const fetchLoggedUser = useCallback(async (tokenOverride?: string) => {
   setLoading(true);
 
-  const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
+  const tokenFromStorage = normalizeStoredToken(
+    tokenOverride ?? localStorage.getItem("token") ?? cookies.get("token")
+  );
 
   if (!tokenFromStorage) {
     setUser(null);
@@ -129,20 +140,24 @@ const fetchLoggedUser = useCallback(async () => {
   setApiToken(tokenFromStorage);
 
   try {
-    const userData = await api.get<MeResponse>("/me").then((res) => res.data);
+    const userData = await api
+      .get<MeResponse>("/me", {
+        headers: { Authorization: `Bearer ${tokenFromStorage}` },
+      })
+      .then((res) => res.data);
+
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
 
-    // 🚫 Usuário não confirmado — volta para login
+    // 🚫 Conta ainda não aprovada → volta pro login
     if (!userData.confirmar) {
-      logout();
+      await logout();
       router.replace("/login?status_code=PENDING_APPROVAL");
       return;
     }
-    
-    // 🔧 Corrige o path do dashboard de acordo com o role
-    let dashboardPath = "/dashboard";
 
+    // Define o dashboard conforme o role
+    let dashboardPath = "/dashboard";
     switch (userData.role) {
       case "administrador":
         dashboardPath = "/dashboard/admin";
@@ -155,25 +170,22 @@ const fetchLoggedUser = useCallback(async () => {
         break;
     }
 
-    // 🚀 Se já completou o perfil e está em /complete-registration, manda pro dashboard
-    if (pathname === "/complete-registration" && userData.is_profile_complete) {
-      router.replace(dashboardPath);
-      return;
-    }
-
-
-    // ✅ Contas Google precisam completar perfil
-
-
-    if (userData.google_id && !userData.is_profile_complete) {
-      if (pathname !== "/complete-registration") {
+    // ✅ Regras específicas para login via Google
+    if (userData.google_id) {
+      // Se ainda não completou o cadastro → força /complete-registration
+      if (!userData.is_profile_complete && pathname !== "/complete-registration") {
         router.replace("/complete-registration");
+        return;
       }
-      return;
+
+      // Se já completou e está na página de completar → manda pro dashboard
+      if (userData.is_profile_complete && pathname === "/complete-registration") {
+        router.replace(dashboardPath);
+        return;
+      }
     }
 
-
-    // 🚀 Redirecionamento automático se estiver em login ou root
+    // 🚀 Login normal (email/senha) — manda pro dashboard se estiver em login/register/root
     if (
       pathname.startsWith("/login") ||
       pathname === "/" ||
@@ -183,7 +195,9 @@ const fetchLoggedUser = useCallback(async () => {
     }
   } catch (error) {
     if (error instanceof AxiosError && error.response?.status === 401) {
-      logout();
+      await logout();
+    } else {
+      console.error("fetchLoggedUser error:", error);
     }
   } finally {
     setLoading(false);
