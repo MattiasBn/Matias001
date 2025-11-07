@@ -1,12 +1,19 @@
 "use client";
 
-import { createContext, useState, useEffect, useContext, ReactNode, useCallback } from "react";
+import {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  ReactNode,
+  useCallback,
+} from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useCookies } from "next-client-cookies";
+import { AxiosError } from "axios";
 import api from "@/lib/api";
 import { User, MeResponse } from "@/types/api";
 import Loader from "@/components/animacao/Loader";
-import { AxiosError } from "axios";
 
 // -----------------------------------------------------------
 // TIPAGEM DO CONTEXTO
@@ -14,18 +21,24 @@ import { AxiosError } from "axios";
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (token: string, userData: User) => void;
-  logout: () => void;
+  login: (token: string, userData: User) => Promise<void>;
+  logout: () => Promise<void>;
   loading: boolean;
-  fetchLoggedUser: () => Promise<void>;
+  fetchLoggedUser: (tokenOverride?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   registerWithGoogle: () => Promise<void>;
   googleMessage: { code: string; message: string } | null;
   clearGoogleMessage: () => void;
 }
 
+// -----------------------------------------------------------
+// CONTEXTO
+// -----------------------------------------------------------
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// -----------------------------------------------------------
+// FUNÇÃO AUXILIAR — normaliza tokens armazenados
+// -----------------------------------------------------------
 const normalizeStoredToken = (t: string | null | undefined) => {
   if (!t) return null;
   const s = String(t).trim();
@@ -45,7 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const cookies = useCookies();
 
-  // ✅ Define Authorization header
+  // -----------------------------------------------------------
+  // Define header Authorization globalmente
+  // -----------------------------------------------------------
   const setApiToken = useCallback((token: string | null) => {
     if (typeof window === "undefined") return;
     if (token && token !== "undefined") {
@@ -62,9 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // -----------------------------------------------------------
   const logout = useCallback(async () => {
     try {
-      const tokenFromStorage = normalizeStoredToken(localStorage.getItem("token") || cookies.get("token"));
+      const tokenFromStorage = normalizeStoredToken(
+        localStorage.getItem("token") || cookies.get("token")
+      );
       if (tokenFromStorage) {
-        await api.post("/logout", {}, { headers: { Authorization: `Bearer ${tokenFromStorage}` } });
+        await api.post(
+          "/logout",
+          {},
+          { headers: { Authorization: `Bearer ${tokenFromStorage}` } }
+        );
       }
     } catch {
       // ignora erro
@@ -79,133 +100,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [cookies, router, setApiToken]);
 
   // -----------------------------------------------------------
+  // FETCH LOGGED USER
+  // -----------------------------------------------------------
+  const fetchLoggedUser = useCallback(
+    async (tokenOverride?: string) => {
+      setLoading(true);
+      const token =
+        normalizeStoredToken(tokenOverride) ||
+        normalizeStoredToken(localStorage.getItem("token")) ||
+        normalizeStoredToken(cookies.get("token"));
+
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      setApiToken(token);
+
+      try {
+        const { data } = await api.get<MeResponse>("/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setUser(data);
+        localStorage.setItem("user", JSON.stringify(data));
+
+        if (!data.confirmar) {
+          await logout();
+          router.replace("/login?status_code=PENDING_APPROVAL");
+          return;
+        }
+
+        if (
+          ["/", "/login", "/register"].includes(pathname)
+        ) {
+          const rolePath: Record<string, string> = {
+            administrador: "/dashboard/admin",
+            funcionario: "/dashboard/funcionario",
+            gerente: "/dashboard/gerente",
+          };
+          router.replace(rolePath[data.role] || "/dashboard");
+        }
+      } catch (error) {
+        if (error instanceof AxiosError && error.response?.status === 401) {
+          await logout();
+        } else {
+          console.error("fetchLoggedUser error:", error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cookies, pathname, router, logout, setApiToken]
+  );
+
+  // -----------------------------------------------------------
   // LOGIN NORMAL
   // -----------------------------------------------------------
   const login = useCallback(
-    (token: string, userData: User) => {
-      console.log("🧩 TOKEN RECEBIDO:", token);
-      console.log("🧩 USER RECEBIDO:", userData);
-
-      if (!token) {
-        console.warn("⚠️ Token inválido, abortando login");
-        return;
-      }
+    async (token: string, userData: User) => {
+      if (!token) return;
 
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + 7);
+
       cookies.set("token", token, { path: "/", expires: expirationDate });
       localStorage.setItem("token", token);
-
       setApiToken(token);
-      localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
 
-      // 🚀 Redirecionamento conforme role
-      const rolePath: Record<string, string> = {
-        administrador: "/dashboard/admin",
-        funcionario: "/dashboard/funcionario",
-        gerente: "/dashboard/gerente",
-      };
-
-      router.push(rolePath[userData.role] || "/dashboard");
+      await fetchLoggedUser(token);
     },
-    [cookies, router, setApiToken]
+    [cookies, fetchLoggedUser, setApiToken]
   );
 
   // -----------------------------------------------------------
-// FETCH DO UTILIZADOR LOGADO (corrigido)
-// -----------------------------------------------------------
-// -----------------------------------------------------------
-// FETCH DO UTILIZADOR LOGADO (ajustado p/ Laravel Sanctum)
-// -----------------------------------------------------------
-// -----------------------------------------------------------
-// FETCH DO UTILIZADOR LOGADO (corrigido e adaptado para Google)
-// -----------------------------------------------------------
-// FETCH DO UTILIZADOR LOGADO (corrigido e adaptado para Google)
-// -----------------------------------------------------------
-
-const fetchLoggedUser = useCallback(async (tokenOverride?: string) => {
-  setLoading(true);
-
-  const tokenFromStorage = normalizeStoredToken(
-    tokenOverride ?? localStorage.getItem("token") ?? cookies.get("token")
-  );
-
-  if (!tokenFromStorage) {
-    setUser(null);
-    setLoading(false);
-    return;
-  }
-
-  setApiToken(tokenFromStorage);
-
-  try {
-    const userData = await api
-      .get<MeResponse>("/me", {
-        headers: { Authorization: `Bearer ${tokenFromStorage}` },
-      })
-      .then((res) => res.data);
-
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-
-    // 🚫 Conta ainda não aprovada → volta pro login
-    if (!userData.confirmar) {
-      await logout();
-      router.replace("/login?status_code=PENDING_APPROVAL");
-      return;
-    }
-
-    // Define o dashboard conforme o role
-    let dashboardPath = "/dashboard";
-    switch (userData.role) {
-      case "administrador":
-        dashboardPath = "/dashboard/admin";
-        break;
-      case "funcionario":
-        dashboardPath = "/dashboard/funcionario";
-        break;
-      case "gerente":
-        dashboardPath = "/dashboard/gerente";
-        break;
-    }
-
-    // ✅ Regras específicas para login via Google
-    if (userData.google_id) {
-      // Se ainda não completou o cadastro → força /complete-registration
-      if (!userData.is_profile_complete && pathname !== "/complete-registration") {
-        router.replace("/complete-registration");
-        return;
-      }
-
-      // Se já completou e está na página de completar → manda pro dashboard
-      if (userData.is_profile_complete && pathname === "/complete-registration") {
-        router.replace(dashboardPath);
-        return;
-      }
-    }
-
-    // 🚀 Login normal (email/senha) — manda pro dashboard se estiver em login/register/root
-    if (
-      pathname.startsWith("/login") ||
-      pathname === "/" ||
-      pathname === "/register"
-    ) {
-      router.replace(dashboardPath);
-    }
-  } catch (error) {
-    if (error instanceof AxiosError && error.response?.status === 401) {
-      await logout();
-    } else {
-      console.error("fetchLoggedUser error:", error);
-    }
-  } finally {
-    setLoading(false);
-  }
-}, [cookies, router, pathname, logout, setApiToken]);
-
-  // -----------------------------------------------------------
-  // LOGIN COM GOOGLE
+  // LOGIN E REGISTO COM GOOGLE
   // -----------------------------------------------------------
   const loginWithGoogle = useCallback(async () => {
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/redirect?state=login`;
@@ -216,43 +187,46 @@ const fetchLoggedUser = useCallback(async (tokenOverride?: string) => {
   }, []);
 
   // -----------------------------------------------------------
-  // CALLBACK GOOGLE + INICIALIZAÇÃO
+  // CALLBACK GOOGLE
   // -----------------------------------------------------------
   useEffect(() => {
     const handleGoogleCallback = async () => {
       const params = new URLSearchParams(window.location.search);
       const tokenFromGoogle = params.get("token");
-      //const state = params.get("state");
       const messageCode = params.get("message_code");
 
-      // Limpa a URL antes de qualquer coisa
       if (window.location.search) router.replace(pathname);
 
-      // ⚠️ Mensagens de erro
       if (messageCode) {
         const messages: Record<string, string> = {
-          PENDING_APPROVAL: "O seu registo foi criado. Aguarde a aprovação do administrador.",
-          REGISTER_PENDING_APPROVAL: "Aguardando aprovação do administrador.",
+          PENDING_APPROVAL:
+            "O seu registo foi criado. Aguarde a aprovação do administrador.",
+          REGISTER_PENDING_APPROVAL:
+            "Aguardando aprovação do administrador.",
         };
-        setGoogleMessage({ code: messageCode, message: messages[messageCode] || "Erro no registo social." });
+        setGoogleMessage({
+          code: messageCode,
+          message:
+            messages[messageCode] || "Erro no registo social.",
+        });
         router.replace("/login");
         setLoading(false);
         return;
       }
 
-      // ✅ Token vindo do Google
       if (tokenFromGoogle) {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
-        cookies.set("token", tokenFromGoogle, { path: "/", expires: expirationDate });
+        cookies.set("token", tokenFromGoogle, {
+          path: "/",
+          expires: expirationDate,
+        });
         localStorage.setItem("token", tokenFromGoogle);
         setApiToken(tokenFromGoogle);
-
-        await fetchLoggedUser();
+        await fetchLoggedUser(tokenFromGoogle);
         return;
       }
 
-      // Caso normal (sem callback Google)
       await fetchLoggedUser();
     };
 
@@ -281,8 +255,12 @@ const fetchLoggedUser = useCallback(async (tokenOverride?: string) => {
   );
 }
 
+// -----------------------------------------------------------
+// HOOK DE USO
+// -----------------------------------------------------------
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  if (!context)
+    throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };

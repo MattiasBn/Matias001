@@ -21,33 +21,51 @@ class AuthController extends Controller
      *//**
      * Registrar novo usuário
      */
+public function register(Request $request)
+{
+    $request->validate([
+        'name'      => 'required|string|max:255|unique:users',
+        'email'     => 'required|string|email|max:255|unique:users',
+        'password'  => 'required|string|min:8|confirmed',
+        'role'      => 'in:funcionario,administrador,gerente',
+        'telefone'  => 'required|string|max:20|unique:users',
+    ]);
 
-    public function register(Request $request)
-    {
-        $request->validate([
-            'name'      => 'required|string|max:255|unique:users', // Adicionada regra 'unique:users'
-            'email'     => 'required|string|email|max:255|unique:users',
-            'password'  => 'required|string|min:8|confirmed',
-            'role'      => 'in:funcionario,administrador,gerente',
-            'telefone'  => 'required|string|max:20|unique:users', // Alterada para 'required' e 'unique'
-        ]);
+    // ✅ Verificar se o email é válido via Google OAuth
+    try {
+        // Tentativa de OAuth apenas para validação do email
+        $googleUser = Socialite::driver('google')
+            ->stateless()
+            ->userFromToken($request->input('google_token')); // token enviado do frontend
 
-        $user = User::create([
-            'name'      => $request->name,
-            'email'     => $request->email,
-            'password'  => Hash::make($request->password),
-            'role'      => $request->role ?? 'funcionario',
-            'telefone'  => $request->telefone,
-            'confirmar' => false, // conta bloqueada até aprovação
-            'photo'     => $request->photo,
-        ]);
-
+        if ($googleUser->getEmail() !== $request->email) {
+            return response()->json([
+                'message' => 'O email fornecido não corresponde a uma conta Google válida.',
+            ], 422);
+        }
+    } catch (\Exception $e) {
         return response()->json([
-            'message' => 'Registro efetuado com sucesso. Aguarde a confirmação do administrador.',
-            'user'    => $user,
-            
-        ], 201);
+            'message' => 'O email fornecido não é válido ou não existe no Google.',
+        ], 422);
     }
+
+    // Criar usuário normalmente
+    $user = User::create([
+        'name'      => $request->name,
+        'email'     => $request->email,
+        'password'  => Hash::make($request->password),
+        'role'      => $request->role ?? 'funcionario',
+        'telefone'  => $request->telefone,
+        'confirmar' => false, // conta bloqueada até aprovação do admin
+        'photo'     => $request->photo ?? null,
+    ]);
+
+    return response()->json([
+        'message' => 'Registro efetuado com sucesso. Aguarde a confirmação do administrador.',
+        'user'    => $user,
+    ], 201);
+}
+
 
     /**
      * Login
@@ -107,20 +125,19 @@ class AuthController extends Controller
      * Dados do utilizador logado
      */
     public function me(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        return response()->json([
-        'id' => $user->id,
-        'name' => $user->name,
-        'email' => $user->email,
-        'role' => $user->role,
-        'confirmar' => $user->confirmar,
-        'photo' => $user->photo,
-        'login_type' => $user->login_type, // 👈 adiciona isto
-        // O campo 'is_profile_complete' é fornecido pelo Accessor que criamos
-        'is_profile_complete' => $user->is_profile_complete, 
+    return response()->json([
+        'id'         => $user->id,
+        'name'       => $user->name,
+        'email'      => $user->email,
+        'role'       => $user->role,
+        'confirmar'  => (bool) $user->confirmar,
+        'photo'      => $user->photo,
+        'login_type' => $user->login_type ?? 'email', // evita erro se campo não existir
     ]);
+
 
     }
 
@@ -149,26 +166,22 @@ class AuthController extends Controller
      * Alterar senha
      */
     public function alterarSenha(Request $request)
-    {
-        $request->validate([
-            'current_password' => ['required','string'],
-            'password'         => ['required','string','min:8','confirmed'],
-        ]);
+{
+    $validated = $request->validate([
+        'current_password' => ['required','string'],
+        'password'         => ['required','string','min:8','confirmed'],
+    ]);
 
-        $user = $request->user();
+    $user = $request->user();
 
-        if (!Hash::check($request->current_password, $user->password)) {
-            return response()->json([
-                'message' => 'A senha atual está incorreta.',
-            ], 422);
-        }
-
-        $user->forceFill([
-            'password' => Hash::make($request->password),
-        ])->setRememberToken(null)->save();
-
-        return response()->json(['message' => 'Senha alterada com sucesso.']);
+    if (!Hash::check($validated['current_password'], $user->password)) {
+        return response()->json(['message' => 'A senha atual está incorreta.'], 422);
     }
+
+    $user->update(['password' => Hash::make($validated['password'])]);
+
+    return response()->json(['message' => 'Senha alterada com sucesso.']);
+}
 
     /**
      * Deletar conta
@@ -281,69 +294,12 @@ class AuthController extends Controller
 
     // Revoga tokens antigos e cria novo
     $user->tokens()->delete();
+
     $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
 
-    // Verifica perfil completo
-    if (!$user->is_profile_complete) {
-        return redirect()->away("{$frontendUrl}/auth/callback?token={$token}&state=incomplete");
-    }
+
 
     return redirect()->away("{$frontendUrl}/auth/callback?token={$token}&state=complete");
 }
-    
- // Dentro da classe AuthController
- public function completeRegistration(Request $request)
-    {
-        /** @var \App\Models\User $user */
-        $user = $request->user();
-
-        if (!$user) {
-            return response()->json(['message' => 'Usuário não autenticado ou token inválido.'], 401);
-        }
-
-        // ✅ Se já completou o perfil, manda direto para o sucesso (isto corrige o loop no refresh do dashboard)
-        if ($user->telefone && $user->password) {
-            return response()->json([
-                'message' => 'Perfil já completado. Redirecionando.',
-                'token' => $user->createToken('auth_token', [$user->role])->plainTextToken,
-                'user' => $user, // Devolve o objeto completo
-            ], 200);
-        }
-
-        // ✅ Só Google Users podem completar (esta checagem está correta)
-        if (!$user->google_id) {
-             // Caso a conta seja de login normal
-             return response()->json(['message' => 'Esta conta já está completa.'], 403);
-        }
-        
-        $request->validate([
-            'telefone' => 'required|string|max:20',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-
-$user->tokens()->delete(); // ✅ limpa tokens antigos
-
-
-        $user->update([
-            'telefone' => $request->telefone,
-            'password' => Hash::make($request->password),
-            'confirmar' => true, // OBRIGATÓRIO: Garante que o campo de ativação vai para TRUE
-        ]);
-
-        $user->refresh(); // 🔑 CRÍTICO: Recarrega o modelo para que o Accessor 'is_profile_complete' seja TRUE
  
-        
-
-
-        $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
-
-        // 🎯 Resposta JSON CORRIGIDA (UserResource seria melhor, mas manteremos o array plano)
-        return response()->json([
-            'message' => 'Perfil completo. Redirecionando.',
-            'token' => $token, 
-            'user' => $user, // DEVOLVE O OBJETO COMPLETO E ATUALIZADO
-        ], 200);
-    }
-
 }

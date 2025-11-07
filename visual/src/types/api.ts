@@ -8,7 +8,6 @@ export interface User {
   confirmar: boolean;
   photo?: string | null;
   google_id?: string;
-  is_profile_complete?: boolean;
   login_type?: "google" | "normal";
 }
 export type MeResponse = User;
