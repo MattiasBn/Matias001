@@ -21,7 +21,7 @@ class AuthController extends Controller
      *//**
      * Registrar novo usuário
      */
-public function register(Request $request)
+ public function register(Request $request)
 {
     $request->validate([
         'name'      => 'required|string|max:255|unique:users',
@@ -31,18 +31,26 @@ public function register(Request $request)
         'telefone'  => 'required|string|max:20|unique:users',
     ]);
 
-    // 🔍 Verificar se o e-mail é real via AbstractAPI
-    $apiKey = env('ABSTRACT_API_KEY');
     $email = $request->email;
-    $url = "https://emailvalidation.abstractapi.com/v1/?api_key={$apiKey}&email={$email}";
+    $apiKey = env('ABSTRACT_API_KEY');
 
-    $response = Http::get($url);
-    $data = $response->json();
+    // ✅ URL correta para validação real
+    $url = "https://emailreputation.abstractapi.com/v1/?api_key={$apiKey}&email={$email}";
 
-    if (!isset($data['email_deliverability']['status']) || $data['email_deliverability']['status'] !== 'deliverable') {
+    try {
+        $response = Http::timeout(10)->get($url);
+        $data = $response->json();
+
+        if (!isset($data['email_deliverability']['status']) || $data['email_deliverability']['status'] !== 'deliverable') {
+            return response()->json([
+                'message' => 'O e-mail informado não é válido ou não pode receber mensagens.'
+            ], 422);
+        }
+    } catch (\Exception $e) {
         return response()->json([
-            'message' => 'O e-mail informado não é válido ou não pode receber mensagens.'
-        ], 422);
+            'message' => 'Erro ao verificar e-mail. Tente novamente mais tarde.',
+            'error' => $e->getMessage()
+        ], 500);
     }
 
     $user = User::create([
@@ -52,7 +60,7 @@ public function register(Request $request)
         'role'      => $request->role ?? 'funcionario',
         'telefone'  => $request->telefone,
         'confirmar' => false,
-        'photo'     => $request->photo,
+        'photo'     => $request->photo ?? null,
     ]);
 
     return response()->json([
@@ -60,7 +68,6 @@ public function register(Request $request)
         'user'    => $user,
     ], 201);
 }
-
 
     /**
      * Login
