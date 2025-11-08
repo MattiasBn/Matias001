@@ -31,33 +31,28 @@ public function register(Request $request)
         'telefone'  => 'required|string|max:20|unique:users',
     ]);
 
-    // ✅ Verificar se o email é válido via Google OAuth
-    try {
-        // Tentativa de OAuth apenas para validação do email
-        $googleUser = Socialite::driver('google')
-            ->stateless()
-            ->userFromToken($request->input('google_token')); // token enviado do frontend
+    // 🔍 Verificar se o e-mail é real via AbstractAPI
+    $apiKey = env('ABSTRACT_API_KEY');
+    $email = $request->email;
+    $url = "https://emailvalidation.abstractapi.com/v1/?api_key={$apiKey}&email={$email}";
 
-        if ($googleUser->getEmail() !== $request->email) {
-            return response()->json([
-                'message' => 'O email fornecido não corresponde a uma conta Google válida.',
-            ], 422);
-        }
-    } catch (\Exception $e) {
+    $response = Http::get($url);
+    $data = $response->json();
+
+    if (!isset($data['email_deliverability']['status']) || $data['email_deliverability']['status'] !== 'deliverable') {
         return response()->json([
-            'message' => 'O email fornecido não é válido ou não existe no Google.',
+            'message' => 'O e-mail informado não é válido ou não pode receber mensagens.'
         ], 422);
     }
 
-    // Criar usuário normalmente
     $user = User::create([
         'name'      => $request->name,
-        'email'     => $request->email,
+        'email'     => $email,
         'password'  => Hash::make($request->password),
         'role'      => $request->role ?? 'funcionario',
         'telefone'  => $request->telefone,
-        'confirmar' => false, // conta bloqueada até aprovação do admin
-        'photo'     => $request->photo ?? null,
+        'confirmar' => false,
+        'photo'     => $request->photo,
     ]);
 
     return response()->json([
