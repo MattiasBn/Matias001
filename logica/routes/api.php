@@ -54,10 +54,10 @@ Route::post('/register', [AuthController::class, 'register']);
 
 // Recuperação de senha
 Route::middleware('api')->group(function () {
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendPasswordReset'])
         ->name('password.email');
 
-    Route::post('/reset-password', [PasswordController::class, 'reset'])
+    Route::post('/reset-password', [PasswordController::class, 'resetPassword'])
         ->name('password.reset');
 });
 

@@ -281,7 +281,7 @@ export default function LoginForm() {
               </Button>
               <Button
                 variant="link"
-                onClick={() => router.push("/recuperar-senha")}
+                onClick={() => router.push("/forgot-password")}
                 className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >
                 Esqueceu sua senha?
