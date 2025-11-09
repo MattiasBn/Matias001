@@ -10,6 +10,7 @@ use App\Http\Controllers\GerenteController;
 use App\Http\Controllers\FuncionarioController;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Http\Request;
+use App\Http\Controllers\EmailController;
 // ==============================
 // Rotas públicas (sem autenticação)
 // ==============================
@@ -23,6 +24,14 @@ Route::get('/auth/social/temp/{key}', function ($key) {
     }
     return response()->json($data);
 });
+
+//senhas 
+
+
+
+Route::middleware('auth:sanctum')->post('/email/send', [EmailController::class, 'sendEmail']);
+
+
 
 //rotas do auth do google
 Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb']);

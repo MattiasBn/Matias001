@@ -9,40 +9,31 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use App\Models\User;
 
 class PasswordController extends Controller
 {
-    public function reset(Request $request)
-    {
-        
+   public function resetPassword(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email|exists:users,email',
+        'password' => 'required|string|min:8|confirmed',
+        'token' => 'required|string'
+    ]);
 
-        $request->validate([
-            'token'    => 'required',
-            'email'    => 'required|email',
-            'password' => 'required|min:8|confirmed',
-        ]);
+    $user = User::where('email', $request->email)->first();
 
-        $status = Password::broker('users')->reset(
-            // **CORREÇÃO: Removido 'password_confirmation'**
-            $request->only('email', 'password', 'token'), 
-            function ($user, $password) {
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                    'remember_token' => Str::random(60),
-                ])->save();
-
-                event(new PasswordReset($user));
-            }
-        );
-
-        if ($status === Password::PASSWORD_RESET) {
-            return response()->json([
-                'message' => __($status)
-            ], 200);
-        }
-
-        throw ValidationException::withMessages([
-            'email' => [__($status)]
-        ]);
+    // Verifica token
+    if (!Hash::check($request->token, $user->password_reset_token) ||
+        now()->gt($user->password_reset_expires)) {
+        return response()->json(['mensagem' => 'Token inválido ou expirado.'], 422);
     }
+
+    $user->password = Hash::make($request->password);
+    $user->password_reset_token = null;
+    $user->password_reset_expires = null;
+    $user->save();
+
+    return response()->json(['mensagem' => 'Senha redefinida com sucesso!']);
+}
 }

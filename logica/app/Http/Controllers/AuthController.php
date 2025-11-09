@@ -34,6 +34,9 @@ class AuthController extends Controller
     $email = $request->email;
     $apiKey = env('ABSTRACT_API_KEY');
 
+    //caminho da api usada para identificar email valido a ser cadastrado 
+    //https://app.abstractapi.com/api/email-reputation/settings
+
     // ✅ URL correta para validação real
     $url = "https://emailreputation.abstractapi.com/v1/?api_key={$apiKey}&email={$email}";
 
@@ -43,7 +46,7 @@ class AuthController extends Controller
 
         if (!isset($data['email_deliverability']['status']) || $data['email_deliverability']['status'] !== 'deliverable') {
             return response()->json([
-                'message' => 'O e-mail informado não é válido ou não pode receber mensagens.'
+                'message' => 'O Nosso Sistema Verificou que o E-mail introduzido não é válido, ou não pode receber mensagens.'
             ], 422);
         }
     } catch (\Exception $e) {
