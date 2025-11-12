@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+// Adicionar o Input e o ícone Search
+import { Input } from "@/components/ui/input"; 
 import {
   Menu,
   LogOut,
@@ -22,13 +24,13 @@ import {
   Sun,
   Moon,
   PanelLeft,
-  Bell, // <-- NOVO: Ícone do Sino para Notificações
+  Bell,
+  Search, // <--- NOVO: Ícone para a pesquisa
 } from "lucide-react";
 
 type Props = {
   onMenuClick?: () => void;
   title?: string;
-  // Propriedade do Sidebar Collapse (mantida)
   onToggleCollapse?: () => void;
 };
 
@@ -39,7 +41,7 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
   const [dateTime, setDateTime] = useState<string>("");
 
   useEffect(() => {
-    // Tema inicial (localStorage)
+    // Lógica de tema e hora (mantida)
     const saved = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
     if (saved === "dark") {
       document.documentElement.classList.add("dark");
@@ -48,8 +50,6 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
       document.documentElement.classList.remove("dark");
       setDarkMode(false);
     }
-
-    // Atualiza hora local a cada minuto
     const updateTime = () => {
       const now = new Date();
       setDateTime(
@@ -74,18 +74,17 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
     localStorage.setItem("theme", next ? "dark" : "light");
   };
 
-  // safe reads
   const photo = user?.photo ?? null;
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : "?";
 
-  // fallback de título: se não recebeu title via prop, usa "Painel do {Role}"
   const computedTitle =
     title ??
     (user?.role ? `Painel do ${String(user.role).charAt(0).toUpperCase()}${String(user.role).slice(1)}` : "Painel");
 
   return (
-    <header className="flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3">
-      {/* Esquerda: botão mobile + botão de colapso + título */}
+    <header className="flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 sticky top-0 z-20">
+      
+      {/* 1. Esquerda: Botões e Título */}
       <div className="flex items-center gap-3">
         {/* Botão Mobile */}
         <Button
@@ -98,7 +97,7 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
           <Menu className="h-5 w-5" />
         </Button>
         
-        {/* Botão para Colapso do Sidebar Desktop */}
+        {/* Botão de Colapso Desktop */}
         {onToggleCollapse && (
           <Button
             variant="ghost"
@@ -116,17 +115,32 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
         </h1>
       </div>
 
-      {/* Direita: hora, alertas, tema e avatar */}
+      {/* 2. Centro: Pesquisa Global */}
+      <div className="relative hidden lg:block w-full max-w-sm mx-auto">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Input
+          type="search"
+          placeholder="Pesquisar clientes, faturas, produtos..."
+          className="w-full pl-9 h-9"
+        />
+      </div>
+
+      {/* 3. Direita: Hora, Alertas, Tema e Avatar */}
       <div className="flex items-center gap-4">
         <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400">{dateTime}</span>
 
-        {/* --- NOVO: Dropdown de Alertas/Notificações --- */}
+        {/* Dropdown de Alertas/Notificações (Posição corrigida) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Notificações">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                aria-label="Notificações"
+                className="relative" // <--- CHAVE: Posicionamento relativo
+            >
               <Bell className="h-5 w-5" />
-              {/* Você pode adicionar um badge de notificação aqui */}
-              <span className="absolute top-2 right-24 md:right-32 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
+              {/* Indicador de Notificação (Posicionamento absoluto corrigido) */}
+              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
@@ -151,12 +165,12 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {/* --- FIM DO NOVO BLOCO --- */}
         
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Alternar tema">
           {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
 
+        {/* Dropdown de Usuário (mantido) */}
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -176,33 +190,30 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span className="font-semibold">{user.name}</span>
-                  <span className="text-xs text-gray-500 lowercase">{user.role}</span>
-                </div>
-              </DropdownMenuLabel>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4" /> Ver Perfil
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2">
-                <Settings className="h-4 w-4" /> Configurações
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onClick={() => {
-                  logout();
-                  router.push("/login");
-                }}
-                className="flex items-center gap-2 text-red-600"
-              >
-                <LogOut className="h-4 w-4" /> Sair
-              </DropdownMenuItem>
+                {/* ... (Seu conteúdo de DropdownMenuContent) ... */}
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span className="font-semibold">{user.name}</span>
+                    <span className="text-xs text-gray-500 lowercase">{user.role}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <UserIcon className="h-4 w-4" /> Ver Perfil
+                </DropdownMenuItem>
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" /> Configurações
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    logout();
+                    router.push("/login");
+                  }}
+                  className="flex items-center gap-2 text-red-600"
+                >
+                  <LogOut className="h-4 w-4" /> Sair
+                </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
