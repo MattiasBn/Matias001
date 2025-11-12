@@ -11,10 +11,6 @@ use App\Http\Controllers\FuncionarioController;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Http\Request;
 use App\Http\Controllers\EmailController;
-// ==============================
-// Rotas públicas (sem autenticação)
-// ==============================
-
 use Illuminate\Support\Facades\Cache;
 
 Route::get('/auth/social/temp/{key}', function ($key) {
@@ -25,28 +21,21 @@ Route::get('/auth/social/temp/{key}', function ($key) {
     return response()->json($data);
 });
 
-//senhas 
-
-
 
 Route::middleware('auth:sanctum')->post('/email/send', [EmailController::class, 'sendEmail']);
-
-
 
 //rotas do auth do google
 Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogleWeb']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbackWeb']);
 
 //Route::middleware('auth:sanctum')->post('/complete-registration', [AuthController::class, 'completeRegistration']);
-
-
 Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
     return response()->json($request->user());
 });
 
 //Route::post('/completar-registro', [AuthController::class, 'completeRegistration']);
 
- Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/register', [AuthController::class, 'register']);
 
@@ -64,7 +53,7 @@ Route::middleware('api')->group(function () {
 // ==============================
 // Rotas protegidas (com Sanctum)
 // ==============================
-Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
     // Autenticação / perfil
     Route::post('/logout', [AuthController::class, 'logout']);
    // Route::get('/me', [UserController::class, 'me']);
@@ -107,10 +96,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard', [FuncionarioController::class, 'dashboard']);
         Route::get('/tarefas', [FuncionarioController::class, 'tarefas']);
     });
-
     // ==============================
     // Utilizadores gerais (qualquer user logado)
     // ==============================
     Route::get('/utilizadores', [AuthController::class, 'listarUtilizadores']);
     Route::get('/utilizadores/pesquisar', [AuthController::class, 'pesquisarUtilizadores']);
+
+
 });

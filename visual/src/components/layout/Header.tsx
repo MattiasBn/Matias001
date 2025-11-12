@@ -21,14 +21,18 @@ import {
   User as UserIcon,
   Sun,
   Moon,
+  PanelLeft,
+  Bell, // <-- NOVO: Ícone do Sino para Notificações
 } from "lucide-react";
 
 type Props = {
   onMenuClick?: () => void;
   title?: string;
+  // Propriedade do Sidebar Collapse (mantida)
+  onToggleCollapse?: () => void;
 };
 
-export default function Header({ onMenuClick, title }: Props) {
+export default function Header({ onMenuClick, title, onToggleCollapse }: Props) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -81,8 +85,9 @@ export default function Header({ onMenuClick, title }: Props) {
 
   return (
     <header className="flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3">
-      {/* Esquerda: botão mobile + título */}
+      {/* Esquerda: botão mobile + botão de colapso + título */}
       <div className="flex items-center gap-3">
+        {/* Botão Mobile */}
         <Button
           variant="ghost"
           size="icon"
@@ -92,16 +97,62 @@ export default function Header({ onMenuClick, title }: Props) {
         >
           <Menu className="h-5 w-5" />
         </Button>
+        
+        {/* Botão para Colapso do Sidebar Desktop */}
+        {onToggleCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleCollapse}
+            className="hidden md:block"
+            aria-label="Alternar menu lateral"
+          >
+            <PanelLeft className="h-5 w-5" />
+          </Button>
+        )}
 
         <h1 className="text-sm md:text-lg font-semibold text-gray-900 dark:text-white truncate">
           {computedTitle}
         </h1>
       </div>
 
-      {/* Direita: hora, tema e avatar */}
+      {/* Direita: hora, alertas, tema e avatar */}
       <div className="flex items-center gap-4">
         <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400">{dateTime}</span>
 
+        {/* --- NOVO: Dropdown de Alertas/Notificações --- */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Notificações">
+              <Bell className="h-5 w-5" />
+              {/* Você pode adicionar um badge de notificação aqui */}
+              <span className="absolute top-2 right-24 md:right-32 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>
+              <div className="flex items-center justify-between">
+                <span>Notificações (Alertas)</span>
+                <span className="text-xs font-normal text-gray-500">2 Novas</span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="flex flex-col items-start space-y-1">
+                <span className="font-medium text-sm">Fatura #1024 Vencida</span>
+                <span className="text-xs text-gray-500">Há 30 minutos | Clique para ver detalhes</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="flex flex-col items-start space-y-1">
+                <span className="font-medium text-sm">Novo Pedido de Suporte</span>
+                <span className="text-xs text-gray-500">Ontem às 14:00</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="justify-center text-sm font-medium text-indigo-600">
+              Ver todas as notificações
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {/* --- FIM DO NOVO BLOCO --- */}
+        
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Alternar tema">
           {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>

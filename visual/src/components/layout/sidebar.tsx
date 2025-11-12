@@ -7,44 +7,56 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { menuItems, type MenuItem } from "@/components/layout/menuRoles";
-import { X } from "lucide-react";
+// Importado LogOut para o botão de sair no desktop colapsado
+import { X, LogOut } from "lucide-react"; 
 
 interface SidebarProps {
   open?: boolean;
   onClose?: () => void;
+  isCollapsed?: boolean; 
 }
 
-export default function Sidebar({ open = false, onClose }: SidebarProps) {
+export default function Sidebar({ open = false, onClose, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  // role em lowercase e fallback para 'funcionario' para evitar undefined
   const role = (user?.role ?? "funcionario").toLowerCase() as keyof typeof menuItems;
   const links: MenuItem[] = menuItems[role] ?? menuItems.funcionario;
 
   const isActive = (href: string) =>
     pathname === href || pathname?.startsWith(href + "/");
 
+  const sidebarWidthClass = isCollapsed ? "md:w-20" : "md:w-64";
+  const linkPaddingClass = isCollapsed ? "justify-center" : "gap-3"; 
+
   return (
     <>
       {/* Desktop sidebar (md+) */}
-      <aside className="hidden md:flex md:w-64 md:flex-col bg-white dark:bg-gray-900 border-r">
-        <div className="p-4 text-lg font-bold capitalize">Painel {role}</div>
-
+      {/* CORREÇÃO: Adicionadas as classes de posicionamento 'fixed inset-y-0 left-0 z-30' */}
+      <aside className={`hidden md:flex ${sidebarWidthClass} md:flex-col bg-white dark:bg-gray-900 border-r transition-all duration-200 fixed inset-y-0 left-0 z-30`}>
+        
+        {/* Título/Topo: Oculto se recolhido */}
+        <div className={`p-4 text-lg font-bold capitalize whitespace-nowrap overflow-hidden ${isCollapsed ? 'opacity-0 h-0 p-0' : 'opacity-100 h-auto'}`}>
+            Painel {role}
+        </div>
+        
         <nav className="flex-1 p-4 space-y-2">
           {links.map((item) => {
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href} className="block">
                 <div
-                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer ${
+                  className={`flex items-center p-2 rounded-lg cursor-pointer transition-all duration-200 ${linkPaddingClass} ${
                     isActive(item.href)
                       ? "bg-gray-100 dark:bg-gray-800 font-medium"
                       : "hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
                   <Icon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                  <span>{item.label}</span>
+                  
+                  {!isCollapsed && (
+                    <span className="text-sm whitespace-nowrap overflow-hidden">{item.label}</span>
+                  )}
                 </div>
               </Link>
             );
@@ -52,16 +64,18 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
         </nav>
 
         <div className="p-4">
-          <Button variant="destructive" className="w-full" onClick={logout}>
-            Sair
+          {/* CORREÇÃO: Usando LogOut para o ícone de saída */}
+          <Button variant="destructive" className={`${isCollapsed ? 'w-full px-2' : 'w-full'}`} onClick={logout}>
+            {isCollapsed ? <LogOut className="h-5 w-5" /> : 'Sair'}
           </Button>
         </div>
       </aside>
 
-      {/* Mobile: overlay slide-in */}
+      {/* Mobile: (Mantido inalterado) */}
       <AnimatePresence>
         {open && (
-          <>
+          // ... (Seu código mobile, mantido inalterado)
+        <>
             {/* backdrop */}
             <motion.div
               key="backdrop"
