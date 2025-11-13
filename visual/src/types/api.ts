@@ -13,6 +13,7 @@ export interface User {
   photo?: string | null;
   google_id?: string;
   login_type?: "google" | "normal"; // O Laravel retorna 'google' ou 'email'
+  created_at?: string | null;
   
   //  CORREÇÃO / NOVO CAMPO COMPUTADO PELO LARAVEL
   perfil_incompleto?: boolean; 

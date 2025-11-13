@@ -6,7 +6,7 @@ import axios from "axios";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-
+'http//localhost:300' ||
   `http://${typeof window !== "undefined" ? window.location.hostname : "192.168.137.1"}:8000`;
 
 const api = axios.create({
