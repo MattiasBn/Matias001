@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-// Adicionar o Input e o ícone Search
 import { Input } from "@/components/ui/input"; 
 import {
   Menu,
@@ -25,7 +24,9 @@ import {
   Moon,
   PanelLeft,
   Bell,
-  Search, // <--- NOVO: Ícone para a pesquisa
+  Search,
+  HelpCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 type Props = {
@@ -81,6 +82,11 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
     title ??
     (user?.role ? `Painel do ${String(user.role).charAt(0).toUpperCase()}${String(user.role).slice(1)}` : "Painel");
 
+  // Lógica para notificação de perfil incompleto (usa a flag que configuramos no Laravel)
+  const isProfileIncomplete = user && user.perfil_incompleto === true;
+  // Exemplo de contagem de notificações: Perfil Incompleto + 2 Notificações de Exemplo
+  const totalAlerts = (isProfileIncomplete ? 1 : 0) + 2; 
+
   return (
     <header className="flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 sticky top-0 z-20">
       
@@ -129,28 +135,53 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
       <div className="flex items-center gap-4">
         <span className="hidden sm:inline text-xs text-gray-500 dark:text-gray-400">{dateTime}</span>
 
-        {/* Dropdown de Alertas/Notificações (Posição corrigida) */}
+        {/* Dropdown de Alertas/Notificações (Com Alerta de Perfil Incompleto) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
                 variant="ghost" 
                 size="icon" 
                 aria-label="Notificações"
-                className="relative" // <--- CHAVE: Posicionamento relativo
+                className="relative" // Posição relativa para o badge
             >
               <Bell className="h-5 w-5" />
-              {/* Indicador de Notificação (Posicionamento absoluto corrigido) */}
-              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
+              
+              {/* Indicador de Notificação (Luz Vermelha) */}
+              {totalAlerts > 0 && (
+                <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel>
               <div className="flex items-center justify-between">
                 <span>Notificações (Alertas)</span>
-                <span className="text-xs font-normal text-gray-500">2 Novas</span>
+                <span className="text-xs font-normal text-gray-500">{totalAlerts} Novas</span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+
+            {/* --- ALERTA DE PERFIL INCOMPLETO (NOVO) --- */}
+            {isProfileIncomplete && (
+                <>
+                    <DropdownMenuItem 
+                        className="flex flex-col items-start space-y-1 bg-yellow-50 dark:bg-yellow-950/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 cursor-pointer"
+                        // Navega para a página de perfil
+                        onClick={() => router.push("/dashboard/perfil")}
+                    >
+                        <div className="flex items-center font-medium text-sm text-yellow-700 dark:text-yellow-300">
+                            <AlertTriangle className="h-4 w-4 mr-2" /> 
+                            Ação Necessária
+                        </div>
+                        <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                            Complete sua senha e telefone. Clique aqui.
+                        </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                </>
+            )}
+            
+            {/* Outras Notificações (Exemplo) */}
             <DropdownMenuItem className="flex flex-col items-start space-y-1">
                 <span className="font-medium text-sm">Fatura #1024 Vencida</span>
                 <span className="text-xs text-gray-500">Há 30 minutos | Clique para ver detalhes</span>
@@ -159,6 +190,7 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
                 <span className="font-medium text-sm">Novo Pedido de Suporte</span>
                 <span className="text-xs text-gray-500">Ontem às 14:00</span>
             </DropdownMenuItem>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem className="justify-center text-sm font-medium text-indigo-600">
               Ver todas as notificações
@@ -170,7 +202,7 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
           {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
 
-        {/* Dropdown de Usuário (mantido) */}
+        {/* Dropdown de Usuário (Links Corrigidos) */}
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -190,21 +222,43 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-56">
-                {/* ... (Seu conteúdo de DropdownMenuContent) ... */}
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
                     <span className="font-semibold">{user.name}</span>
                     <span className="text-xs text-gray-500 lowercase">{user.role}</span>
                   </div>
                 </DropdownMenuLabel>
+                
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <UserIcon className="h-4 w-4" /> Ver Perfil
+                
+                {/* Rota Ver Perfil (Link Corrigido) */}
+                <DropdownMenuItem 
+                    className="flex items-center gap-2" 
+                    onClick={() => router.push("/dashboard/perfil")}
+                >
+                    <UserIcon className="h-4 w-4" /> Ver Perfil
                 </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" /> Configurações
+
+                {/* Rota Configurações (Link Corrigido) */}
+                <DropdownMenuItem 
+                    className="flex items-center gap-2" 
+                    onClick={() => router.push("/dashboard/configuracoes")}
+                >
+                    <Settings className="h-4 w-4" /> Configurações
                 </DropdownMenuItem>
+                
                 <DropdownMenuSeparator />
+
+                {/* Rota Ajuda (Link Adicionado) */}
+                <DropdownMenuItem 
+                    className="flex items-center gap-2" 
+                    onClick={() => router.push("/dashboard/ajuda")}
+                >
+                    <HelpCircle className="h-4 w-4" /> Ajuda & Instruções
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
                 <DropdownMenuItem
                   onClick={() => {
                     logout();

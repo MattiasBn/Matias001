@@ -129,23 +129,40 @@ class AuthController extends Controller
     /**
      * Dados do utilizador logado
      */
-    public function me(Request $request)
+   // ... dentro de public function me(Request $request)
+public function me(Request $request)
 {
     $user = $request->user();
 
+    // 🚨 CORREÇÃO NA LÓGICA DE PERFIL INCOMPLETO:
+    // O perfil está incompleto se for uma conta social (google_id preenchido)
+    // E faltar o telefone. A senha pode ser NULL e o frontend lida com isso.
+    // Vamos usar a flag que você já criou no Socialite.
+    
+    // Simplificando o cálculo do perfil_incompleto com base nas suas colunas:
+    $isSocialLogin = !empty($user->google_id);
+    
+    // Consideramos incompleto se:
+    // 1. É um login social E o telefone é NULL.
+    // 2. É um login social E a senha é NULL (para forçar o cadastro da senha).
+    $perfilIncompleto = (
+        $isSocialLogin && 
+        (empty($user->telefone) || empty($user->password))
+    );
+
     return response()->json([
-        'id'         => $user->id,
-        'name'       => $user->name,
-        'email'      => $user->email,
-        'role'       => $user->role,
-        'confirmar'  => (bool) $user->confirmar,
-        'photo'      => $user->photo,
-        'login_type' => $user->login_type ?? 'email', // evita erro se campo não existir
+        'id' => $user->id,
+        'name' => $user->name,
+        'email'=> $user->email,
+        'role' => $user->role,
+        'confirmar'=> (bool) $user->confirmar,
+        'photo' => $user->photo,
+        'telefone'  => $user->telefone,
+        // 🚨 CRÍTICO: Use o google_id para determinar o tipo de login
+        'login_type' => $user->google_id ? 'google' : 'email', 
+        'perfil_incompleto' => $perfilIncompleto, // <-- Esta flag agora é precisa
     ]);
-
-
-    }
-
+}
     /**
      * Atualizar perfil
      */
@@ -169,22 +186,60 @@ class AuthController extends Controller
 
     /**
      * Alterar senha
-     */
-    public function alterarSenha(Request $request)
+     */// ... dentro de public function alterarSenha(Request $request)
+public function alterarSenha(Request $request)
 {
-    $validated = $request->validate([
-        'current_password' => ['required','string'],
-        'password'         => ['required','string','min:8','confirmed'],
-    ]);
-
     $user = $request->user();
 
-    if (!Hash::check($validated['current_password'], $user->password)) {
-        return response()->json(['message' => 'A senha atual está incorreta.'], 422);
+    // 1. 🚨 Lógica CRÍTICA para determinar se a senha atual é obrigatória
+    // Senha atual é obrigatória SOMENTE se o usuário tiver uma senha no banco
+    $requiresCurrentPassword = !empty($user->password);
+    
+    // 2. Definir regras de validação base
+    $rules = [
+        // Adiciona a validação de segurança de min:9 e regex do RegisterForm
+        'password' => [
+            'required',
+            'string',
+            'min:9',
+            'confirmed',
+            'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{9,}$/',
+        ],
+    ];
+
+    // 3. Adicionar regra condicional para Senha Atual
+    if ($requiresCurrentPassword) {
+        $rules['current_password'] = ['required', 'string'];
     }
 
+    // Validação
+    $validated = $request->validate($rules);
+
+    // 4. Se a senha atual é exigida, checar se ela está correta
+    if ($requiresCurrentPassword) {
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                // Mensagem de erro que o frontend espera (no campo current_password)
+                'errors' => ['current_password' => ['A senha atual está incorreta.']], 
+                'message' => 'A senha atual está incorreta.'
+            ], 422);
+        }
+    }
+    
+    // 5. Se o perfil estava incompleto, agora está completo
+    if ($user->google_id && empty($user->password)) {
+        // Isto cobre o caso em que o Google user está definindo a primeira senha
+        // Você pode ter uma coluna 'perfil_incompleto' no banco que você atualiza aqui,
+        // mas aqui focamos em atualizar a senha.
+    }
+    
+    // Atualiza a senha e remove a flag 'perfil_incompleto' se aplicável
     $user->update(['password' => Hash::make($validated['password'])]);
 
+    // Opcional: Atualizar a flag perfil_incompleto se for o último campo pendente.
+    // (Depende se você mantém essa coluna na tabela users).
+    // Exemplo: $user->perfil_incompleto = false; $user->save();
+    
     return response()->json(['message' => 'Senha alterada com sucesso.']);
 }
 
