@@ -171,9 +171,10 @@ public function me(Request $request)
         $user = $request->user();
 
         $request->validate([
-            'name'     => 'sometimes|required|string|max:255',
-            'email'    => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
-            'telefone' => 'nullable|string|max:20|unique:users,telefone,' . $user->id,
+            'name'     => 'sometimes|required|string|max:255', Rule::unique('users')->ignore(auth()->id()),
+
+          //  'email'    => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
+            'telefone' => 'nullable|string|max:20|unique:users,telefone,' . $user->id, Rule::unique('users')->ignore(auth()->id()),
             'photo' => 'nullable|image|max:2048', // até 2MB
         ]);
 
@@ -183,7 +184,7 @@ public function me(Request $request)
         }
 
 
-        $user->update($request->only('name', 'email', 'telefone', 'photo'));
+        $user->update($request->only('name',  'telefone', 'photo'));
 
         return response()->json([
             'message' => 'Perfil atualizado com sucesso.',
