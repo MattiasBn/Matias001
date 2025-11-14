@@ -168,7 +168,6 @@ public function me(Request $request)
     /**
      * Atualizar perfil
      */
-
 public function atualizarPerfil(Request $request)
 {
     $user = $request->user();
@@ -179,45 +178,45 @@ public function atualizarPerfil(Request $request)
             'required',
             'string',
             'max:255',
-            Rule::unique('users', 'name')->ignore($user->id), // nome único
+            Rule::unique('users', 'name')->ignore($user->id),
         ],
-
-        // Email NÃO pode ser editado (por segurança)
-        // 'email' => [...],
-
         'telefone' => [
             'nullable',
             'string',
             'max:20',
-            Rule::unique('users', 'telefone')->ignore($user->id), // telefone único
+            Rule::unique('users', 'telefone')->ignore($user->id),
         ],
-
-        'photo' => [
-            'nullable',
-            'image',
-            'max:2048', // 2MB
-        ],
+        'photo' => ['nullable', 'image', 'max:2048'],
     ]);
 
-    // guardar foto se enviada
+    // Atualiza nome e telefone
+    if ($request->filled('name')) {
+        $user->name = $request->name;
+    }
+
+    if ($request->filled('telefone')) {
+        $user->telefone = $request->telefone;
+    }
+
+    // Upload de foto
     if ($request->hasFile('photo')) {
+
+        // Apaga foto antiga
         if ($user->photo) {
             Storage::disk('public')->delete($user->photo);
         }
+
+        // Grava nova foto
         $path = $request->file('photo')->store('perfil', 'public');
         $user->photo = $path;
     }
 
-    // atualizar dados
-    $user->update([
-        'name'     => $request->name ?? $user->name,
-        'telefone' => $request->telefone ?? $user->telefone,
-        'photo'    => $user->photo ?? $user->photo,
-    ]);
+    // Salvar TUDO
+    $user->save();
 
     return response()->json([
         'message' => 'Perfil atualizado com sucesso.',
-        'user'    => $user,
+        'user' => $user,
     ]);
 }
     /**
