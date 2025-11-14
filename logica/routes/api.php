@@ -59,7 +59,7 @@ Route::middleware('api')->group(function () {
    // Route::get('/me', [UserController::class, 'me']);
     Route::put('/atualizar-perfil', [AuthController::class, 'atualizarPerfil']);
     Route::put('/alterar-senha', [AuthController::class, 'alterarSenha']);
-    Route::delete('/perfil', [AuthController::class, 'deletarConta']);
+    Route::delete('/detetar-conta', [AuthController::class, 'deletarConta']);
 
 
     // ==============================

@@ -174,9 +174,16 @@ public function me(Request $request)
             'name'     => 'sometimes|required|string|max:255',
             'email'    => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
             'telefone' => 'nullable|string|max:20|unique:users,telefone,' . $user->id,
+            'photo' => 'nullable|image|max:2048', // até 2MB
         ]);
 
-        $user->update($request->only('name', 'email', 'telefone'));
+         if ($request->hasFile('photo')) {
+            if ($user->photo) Storage::delete($user->photo); // apaga foto antiga
+            $user->photo = $request->file('photo')->store('perfil', 'public');
+        }
+
+
+        $user->update($request->only('name', 'email', 'telefone', 'photo'));
 
         return response()->json([
             'message' => 'Perfil atualizado com sucesso.',

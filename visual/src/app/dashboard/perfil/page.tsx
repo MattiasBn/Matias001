@@ -1,8 +1,7 @@
-// app/dashboard/perfil/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-//import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-//import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, Eye, EyeOff, Info, Lock, Mail, Phone, User as UserIcon, Loader2, Save, X, AlertTriangle, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Eye, EyeOff, Loader2, Save, X, AlertTriangle, Trash2,  ArrowLeft } from "lucide-react";
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import type { AxiosError } from "axios";
 import React from "react";
+import { useRouter } from "next/navigation";
+
 
 interface FormErrors {
   name?: string;
@@ -105,6 +105,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ isVis
 
 export default function ProfilePage() {
   const { user, fetchLoggedUser, logout } = useAuth();
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(user?.perfil_incompleto || false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
@@ -113,7 +114,8 @@ export default function ProfilePage() {
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [profileData, setProfileData] = useState({ name: user?.name || "", email: user?.email || "" });
+  const [profileData, setProfileData] = useState({ name: user?.name || "", email: user?.email || "", photo: null as File | null });
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [telefone, setTelefone] = useState(user?.telefone || "");
   const [passwordData, setPasswordData] = useState({ current_password: "", password: "", password_confirmation: "" });
   const [isPasswordSecure, setIsPasswordSecure] = useState(false);
@@ -121,7 +123,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       if (user.perfil_incompleto) setIsEditing(true);
-      setProfileData({ name: user.name, email: user.email });
+      setProfileData({ name: user.name, email: user.email, photo: null });
       setTelefone(user.telefone || "");
     }
   }, [user]);
@@ -145,8 +147,16 @@ export default function ProfilePage() {
     setErrors({});
     setSuccess(null);
     try {
-      const payload = { ...profileData, telefone };
-      await api.put(`/users/${user?.id}`, payload);
+      const formData = new FormData();
+      formData.append("name", profileData.name);
+      formData.append("email", profileData.email);
+      formData.append("telefone", telefone);
+      if (profileData.photo) formData.append("photo", profileData.photo);
+
+      await api.post(`/atualizar-perfil`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       setSuccess("Perfil atualizado com sucesso!");
       fetchLoggedUser();
       if (user?.perfil_incompleto) setIsEditing(false);
@@ -164,7 +174,7 @@ export default function ProfilePage() {
     setErrors({});
     setSuccess(null);
     try {
-      await api.put(`/users/${user?.id}/password`, passwordData);
+      await api.put(`/alterar-senha`, passwordData);
       setSuccess("Senha alterada com sucesso!");
       setPasswordData({ current_password: "", password: "", password_confirmation: "" });
       setShowPassword(false);
@@ -180,10 +190,9 @@ export default function ProfilePage() {
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
-      await api.delete(`/users/${user?.id}`);
+      await api.delete(`/deletar-conta`);
       logout();
     } catch (err) {
-      // Apenas exibe erro simples
       console.error(err);
     } finally {
       setIsDeleting(false);
@@ -191,10 +200,19 @@ export default function ProfilePage() {
     }
   };
 
+
+  
+
   if (!user) return <p className="text-center mt-8 text-gray-500">A carregar dados do usuário...</p>;
 
   return (
     <div className="p-4 md:p-8 space-y-8 relative overflow-hidden">
+
+        <Button variant="outline" onClick={() => router.back()} className="mb-4 flex items-center gap-2">
+        <ArrowLeft className="h-4 w-4" /> Voltar
+
+      </Button>
+
       <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Meu Perfil e Segurança</h2>
       <p className="text-gray-500 dark:text-gray-400">Gerencie suas informações de conta, dados pessoais e configurações de segurança.</p>
 
@@ -208,12 +226,13 @@ export default function ProfilePage() {
         </Alert>
       )}
 
+      {/* Card Perfil */}
       <motion.div key="profile-card" variants={cardVariants} initial="hidden" animate="visible">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="space-y-1">
               <CardTitle>Dados Pessoais</CardTitle>
-              <CardDescription>Altere seu nome, e-mail e telefone de contacto.</CardDescription>
+              <CardDescription>Altere seu nome, e-mail, telefone e foto de perfil.</CardDescription>
             </div>
             {!isEditing ? (
               <Button onClick={() => setIsEditing(true)}><Save className="h-4 w-4 mr-2" /> Editar Dados</Button>
@@ -223,46 +242,76 @@ export default function ProfilePage() {
               </Button>
             )}
           </CardHeader>
-          <CardContent className="overflow-hidden">
-            <div className="space-y-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
+          <CardContent className="overflow-hidden space-y-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col items-center md:items-start gap-2">
+                <Avatar className="h-20 w-20">
+                  {previewPhoto ? (
+                    <AvatarImage src={previewPhoto} alt={profileData.name} />
+                  ) : user.photo ? (
+                    <AvatarImage src={user.photo} alt={user.name} />
+                  ) : (
+                    <AvatarFallback>{user.name?.[0]}</AvatarFallback>
+                  )}
+                </Avatar>
+                
+                <input
+  type="file"
+  accept="image/*"
+  id="photo"
+  className="hidden"
+  onChange={(e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProfileData(prev => ({ ...prev, photo: file }));
+    const reader = new FileReader();
+    reader.onload = () => setPreviewPhoto(reader.result as string); // <-- corrigido aqui
+    reader.readAsDataURL(file);
+  }}
+/>
+
+                <label htmlFor="photo">
+                  <Button variant="outline" className="mt-2">Alterar Foto</Button>
+                </label>
+              </div>
+              <div className="flex-1 flex flex-col gap-4">
+                <div>
                   <Label htmlFor="name">Nome</Label>
                   <Input id="name" value={profileData.name} onChange={handleChange} disabled={!isEditing} />
                   {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
                 </div>
-                <div className="flex-1">
+                <div>
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" value={profileData.email} onChange={handleChange} disabled={!isEditing} />
                   {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
+                <div>
+                  <Label htmlFor="telefone">Telefone</Label>
+                  <PhoneInput
+                    country={'ao'}
+                    value={telefone}
+                    onChange={setTelefone}
+                    inputProps={{ name: 'telefone', required: true, disabled: !isEditing }}
+                    containerClass="w-full"
+                    inputClass="w-full"
+                  />
+                  {errors.telefone && <p className="text-red-500 text-sm mt-1">{errors.telefone}</p>}
+                </div>
+                {success && <p className="text-green-600">{success}</p>}
+                {errors.global && <p className="text-red-500">{errors.global}</p>}
+                {isEditing && (
+                  <Button className="mt-4" onClick={handleProfileUpdate} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                    Salvar Alterações
+                  </Button>
+                )}
               </div>
-              <div>
-                <Label htmlFor="telefone">Telefone</Label>
-                <PhoneInput
-                  country={'ao'}
-                  value={telefone}
-                  onChange={setTelefone}
-                  inputProps={{ name: 'telefone', required: true, disabled: !isEditing }}
-                  containerClass="w-full"
-                  inputClass="w-full"
-                />
-                {errors.telefone && <p className="text-red-500 text-sm mt-1">{errors.telefone}</p>}
-              </div>
-              {success && <p className="text-green-600">{success}</p>}
-              {errors.global && <p className="text-red-500">{errors.global}</p>}
-              {isEditing && (
-                <Button className="mt-4" onClick={handleProfileUpdate} disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Salvar Alterações
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Alterar senha */}
+      {/* Card Alterar Senha */}
       <motion.div key="password-card" variants={cardVariants} initial="hidden" animate="visible">
         <Card>
           <CardHeader>
@@ -292,7 +341,6 @@ export default function ProfilePage() {
                 <Input id="password_confirmation" type={showPassword ? "text" : "password"} value={passwordData.password_confirmation} onChange={handleChange} />
                 {errors.password_confirmation && <p className="text-red-500 text-sm mt-1">{errors.password_confirmation}</p>}
               </div>
-              {errors.global && <p className="text-red-500">{errors.global}</p>}
               <Button onClick={handlePasswordUpdate} disabled={isPasswordLoading || !isPasswordSecure}>
                 {isPasswordLoading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Atualizar Senha
@@ -302,7 +350,7 @@ export default function ProfilePage() {
         </Card>
       </motion.div>
 
-      {/* Deletar conta */}
+      {/* Card Deletar Conta */}
       <motion.div key="delete-card" variants={cardVariants} initial="hidden" animate="visible">
         <Card>
           <CardHeader>
