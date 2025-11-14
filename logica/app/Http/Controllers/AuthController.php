@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Laravel\Socialite\Contracts\Provider;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 
 class AuthController extends Controller
@@ -166,32 +168,58 @@ public function me(Request $request)
     /**
      * Atualizar perfil
      */
-    public function atualizarPerfil(Request $request)
-    {
-        $user = $request->user();
 
-        $request->validate([
-            'name'     => 'sometimes|required|string|max:255', Rule::unique('users')->ignore(auth()->id()),
+public function atualizarPerfil(Request $request)
+{
+    $user = $request->user();
 
-          //  'email'    => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
-            'telefone' => 'nullable|string|max:20|unique:users,telefone,' . $user->id, Rule::unique('users')->ignore(auth()->id()),
-            'photo' => 'nullable|image|max:2048', // até 2MB
-        ]);
+    $request->validate([
+        'name' => [
+            'sometimes',
+            'required',
+            'string',
+            'max:255',
+            Rule::unique('users', 'name')->ignore($user->id), // nome único
+        ],
 
-         if ($request->hasFile('photo')) {
-            if ($user->photo) Storage::delete($user->photo); // apaga foto antiga
-            $user->photo = $request->file('photo')->store('perfil', 'public');
+        // Email NÃO pode ser editado (por segurança)
+        // 'email' => [...],
+
+        'telefone' => [
+            'nullable',
+            'string',
+            'max:20',
+            Rule::unique('users', 'telefone')->ignore($user->id), // telefone único
+        ],
+
+        'photo' => [
+            'nullable',
+            'image',
+            'max:2048', // 2MB
+        ],
+    ]);
+
+    // guardar foto se enviada
+    if ($request->hasFile('photo')) {
+        if ($user->photo) {
+            Storage::disk('public')->delete($user->photo);
         }
-
-
-        $user->update($request->only('name',  'telefone', 'photo'));
-
-        return response()->json([
-            'message' => 'Perfil atualizado com sucesso.',
-            'user'    => $user,
-        ]);
+        $path = $request->file('photo')->store('perfil', 'public');
+        $user->photo = $path;
     }
 
+    // atualizar dados
+    $user->update([
+        'name'     => $request->name ?? $user->name,
+        'telefone' => $request->telefone ?? $user->telefone,
+        'photo'    => $user->photo ?? $user->photo,
+    ]);
+
+    return response()->json([
+        'message' => 'Perfil atualizado com sucesso.',
+        'user'    => $user,
+    ]);
+}
     /**
      * Alterar senha
      */// ... dentro de public function alterarSenha(Request $request)

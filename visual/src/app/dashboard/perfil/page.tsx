@@ -365,8 +365,12 @@ export default function ProfilePage() {
                       required: true,
                       disabled: !isEditing
                     }}
-                    containerClass="w-full"
-                    inputClass="w-full"
+
+                   inputClass={`!w-full !h-10 !rounded-md !border px-3 text-sm 
+                                 !border-gray-300 dark:!border-gray-700 dark:!bg-gray-800 dark:!text-white 
+                                 `}
+                  dropdownClass="!bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !rounded-md shadow-lg"
+                  searchClass="!bg-gray-50 dark:!bg-gray-700 !text-gray-900 dark:!text-white !rounded-md"
                   />
 
                   {errors.telefone && (
