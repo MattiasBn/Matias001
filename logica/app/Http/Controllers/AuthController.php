@@ -170,55 +170,37 @@ public function me(Request $request)
      */
 public function atualizarPerfil(Request $request)
 {
-    $user = $request->user();
+    $user = auth()->user();
 
     $request->validate([
-        'name' => [
-            'sometimes',
-            'required',
-            'string',
-            'max:255',
-            Rule::unique('users', 'name')->ignore($user->id),
-        ],
-        'telefone' => [
-            'nullable',
-            'string',
-            'max:20',
-            Rule::unique('users', 'telefone')->ignore($user->id),
-        ],
-        'photo' => ['nullable', 'image', 'max:2048'],
+        'name' => 'required|string|min:2|max:100',
+        'telefone' => 'nullable|string|max:20|unique:users,telefone,' . $user->id,
+        'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
     ]);
 
-    // Atualiza nome e telefone
-    if ($request->filled('name')) {
-        $user->name = $request->name;
-    }
+    $user->name = $request->name;
+    $user->telefone = $request->telefone;
 
-    if ($request->filled('telefone')) {
-        $user->telefone = $request->telefone;
-    }
-
-    // Upload de foto
+    // Upload da foto
     if ($request->hasFile('photo')) {
-
-        // Apaga foto antiga
-        if ($user->photo) {
-            Storage::disk('public')->delete($user->photo);
+        if ($user->photo && file_exists(storage_path('app/public/' . $user->photo))) {
+            @unlink(storage_path('app/public/' . $user->photo));
         }
 
-        // Grava nova foto
         $path = $request->file('photo')->store('perfil', 'public');
         $user->photo = $path;
     }
 
-    // Salvar TUDO
+    // Se vier do Google sem completar, então completa
+    if ($user->perfil_incompleto) {
+        $user->perfil_incompleto = false;
+    }
+
     $user->save();
 
-    return response()->json([
-        'message' => 'Perfil atualizado com sucesso.',
-        'user' => $user,
-    ]);
+    return response()->json(['message' => 'Perfil atualizado com sucesso', 'user' => $user]);
 }
+
     /**
      * Alterar senha
      */// ... dentro de public function alterarSenha(Request $request)
@@ -278,17 +260,24 @@ public function alterarSenha(Request $request)
     return response()->json(['message' => 'Senha alterada com sucesso.']);
 }
 
-    /**
-     * Deletar conta
-     */
-    public function deletarConta(Request $request)
+   
+
+
+ public function deletarConta(Request $request)
     {
-        $user = $request->user();
+        $user = Auth::user();
+        
+        // Opcional: logout antes de eliminar
         $user->tokens()->delete();
+
         $user->delete();
 
-        return response()->json(['message' => 'Conta deletada com sucesso.']);
+        return response()->json([
+            'message' => 'Conta eliminada com sucesso.'
+        ], 200);
     }
+
+
 
     /**
      * Listar todos utilizadores

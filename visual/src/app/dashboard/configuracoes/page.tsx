@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Loader2, Moon, Sun, Bell, Mail, Globe } from "lucide-react"; 
+import { Loader2, Moon, Sun, Bell, Mail, Globe, ArrowLeft } from "lucide-react"; 
+import { useRouter } from "next/navigation";
 
 // Definição de tipos para o estado de configuração
 interface UserSettings {
@@ -21,6 +22,7 @@ interface UserSettings {
 
 export default function SettingsPage() {
     // Simulação do estado das configurações do usuário (você substituirá pela API)
+     const router = useRouter();
     const [settings, setSettings] = useState<UserSettings>({
         theme: 'system',
         email_notifications: true,
@@ -64,6 +66,16 @@ export default function SettingsPage() {
 
     return (
         <div className="p-4 md:p-8 space-y-8">
+
+
+         <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="mb-4 flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" /> Voltar
+              </Button>
+
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
                 Configurações da Aplicação
             </h2>

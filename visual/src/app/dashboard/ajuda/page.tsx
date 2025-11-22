@@ -1,10 +1,11 @@
 // app/dashboard/ajuda/page.tsx
 "use client";
 
-import { AlertTriangle, ChevronRight, Contact, FileText, Lock, Settings, User, Zap, Mail } from "lucide-react"; 
+import { AlertTriangle, ChevronRight, Contact, FileText, Lock, Settings, User, Zap, Mail,  ArrowLeft  } from "lucide-react"; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 // Removida a linha de importação de 'useState' e a sua declaração abaixo.
 // import { useState } from "react";
@@ -38,11 +39,24 @@ const topics = [
 ];
 
 export default function HelpPage() {
+     const router = useRouter();
     // 🚨 CORREÇÃO: A linha 'const [_, setSearchTerm] = useState("");' foi removida,
     // bem como o import { useState } do 'react', pois não são usados.
     
     return (
         <div className="p-4 md:p-8 space-y-8">
+
+
+            <Button
+                            variant="outline"
+                            onClick={() => router.back()}
+                            className="mb-4 flex items-center gap-2"
+                          >
+                            <ArrowLeft className="h-4 w-4" /> Voltar
+                          </Button>
+            
+
+
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
                 Centro de Ajuda e Suporte
             </h2>

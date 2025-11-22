@@ -179,7 +179,7 @@ export default function ProfilePage() {
       // email NÃO vai mais
       if (profileData.photo) formData.append("photo", profileData.photo);
 
-      await api.put(`/atualizar-perfil`, formData, {
+      await api.post(`/atualizar-perfil`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
@@ -203,7 +203,7 @@ export default function ProfilePage() {
     setSuccess(null);
 
     try {
-      await api.put(`/alterar-senha`, passwordData);
+      await api.post(`/alterar-senha`, passwordData);
       setSuccess("Senha atualizada com sucesso!");
       setPasswordData({ current_password: "", password: "", password_confirmation: "" });
       setShowPassword(false);

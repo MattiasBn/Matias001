@@ -57,8 +57,8 @@ Route::middleware('api')->group(function () {
     // Autenticação / perfil
     Route::post('/logout', [AuthController::class, 'logout']);
    // Route::get('/me', [UserController::class, 'me']);
-    Route::put('/atualizar-perfil', [AuthController::class, 'atualizarPerfil']);
-    Route::put('/alterar-senha', [AuthController::class, 'alterarSenha']);
+    Route::post('/atualizar-perfil', [AuthController::class, 'atualizarPerfil']);
+    Route::post('/alterar-senha', [AuthController::class, 'alterarSenha']);
     Route::delete('/detetar-conta', [AuthController::class, 'deletarConta']);
 
 
