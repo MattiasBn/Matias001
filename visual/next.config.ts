@@ -1,24 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // outras configurações aqui...
-
-  output: "standalone", // ✅ importante para Render
   reactStrictMode: true,
-  experimental: {
-    appDir: true,
-          },
 
-   images: {
-    domains: ['www.google.com'], // Adicione outros domínios de imagens externas aqui
+  // Usar standalone apenas se realmente for usar corretamente no Render
+  output: "standalone",
+
+  images: {
+    domains: ['www.google.com'], 
   },
-  
-  allowedDevOrigins: [
-    '192.168.137.1', 
-    '*', // Adicione o seu endereço IP aqui
-    'https://Sismatias.onrender.com',
-   'http//localhost:300'
-  
-  ]
 };
 
 module.exports = nextConfig;
