@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+//import { Inter } from "next/font/google";
+
 import "./globals.css";
 import { Toaster } from "sonner";
 
@@ -8,7 +9,7 @@ import { CookiesProvider } from "next-client-cookies/server";
 import { ThemeProvider } from "@/components/animacao/ThemeProvider";
 import { RouteTransition } from "@/components/layout/RouteTransition"; // Importe a transição
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = { className: "font-sans" };
 
 //import type { Metadata } from "next";
 
