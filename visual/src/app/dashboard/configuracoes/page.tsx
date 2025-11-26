@@ -38,10 +38,12 @@ export default function SettingsPage() {
     const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     // 🔐 BLOQUEAR ACESSO SEM LOGIN
-    useEffect(() => {
+   /* useEffect(() => {
         const token = localStorage.getItem("authToken");
         if (!token) router.push("/login");
     }, [router]);
+
+    */
 
     // 🔄 BUSCAR CONFIGURAÇÕES DO USUÁRIO
     useEffect(() => {
