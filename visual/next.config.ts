@@ -1,13 +1,11 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
+import type { NextConfig } from "next";
 
-  // Usar standalone apenas se realmente for usar corretamente no Render
+const nextConfig: NextConfig = {
   output: "standalone",
-
+  reactStrictMode: true,
   images: {
-    domains: ['www.google.com'], 
+    domains: ["www.google.com"], // podes adicionar outras quando precisar
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
