@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Cookie;
+use App\Models\User;
+use App\Observers\UserObserver;
 
 use Illuminate\Auth\Notifications\ResetPassword;
 
@@ -34,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
     Cookie::macro('sameSiteNone', function ($name, $value, $minutes, $path = '/', $domain = null, $secure = false, $httpOnly = true) {
         return Cookie::make($name, $value, $minutes, $path, $domain, $secure, $httpOnly, false, 'None');
     });
+
+
+
+    User::observe(UserObserver::class);
 
     }
 }

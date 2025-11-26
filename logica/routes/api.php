@@ -12,6 +12,7 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Http\Request;
 use App\Http\Controllers\EmailController;
 use Illuminate\Support\Facades\Cache;
+Use App\Http\Controllers\UserSettingsController;
 
 Route::get('/auth/social/temp/{key}', function ($key) {
     $data = Cache::get("social:{$key}");
@@ -61,6 +62,10 @@ Route::middleware('api')->group(function () {
     Route::post('/alterar-senha', [AuthController::class, 'alterarSenha']);
     Route::delete('/detetar-conta', [AuthController::class, 'deletarConta']);
 
+            //rotas de configuracoes 
+
+            Route::get('/settings', [UserSettingsController::class, 'show']);
+            Route::put('/settings', [UserSettingsController::class, 'update']);
 
     // ==============================
     // Rotas ADMIN
