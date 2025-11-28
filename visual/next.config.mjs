@@ -1,20 +1,17 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // outras configurações aqui...
 
-
-/**@type {import ('next' ).NextConfig;} */
-
-const  nextConfig = {
-  output: "standalone",
-
-  experimental: {
-    optimizePackageImports :[
-
-      '@mui/material','@mui/icons-material'
-    ],
+   images: {
+    domains: ['www.google.com'], // Adicione outros domínios de imagens externas aqui
   },
-  reactStrictMode: true,
-  images: {
-    domains: ["www.google.com"], // podes adicionar outras quando precisar
-  },
+  
+  allowedDevOrigins: [
+    '192.168.137.1', 
+    '*', // Adicione o seu endereço IP aqui
+    'https://Sismatias.onrender.com'
+  
+  ]
 };
 
-export default nextConfig;
+module.exports = nextConfig;

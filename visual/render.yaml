@@ -2,8 +2,8 @@ services:
   - type: web
     name: sismatias
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: node .next/standalone/server.js
+    buildCommand: npm run build
+    startCommand: npm start
     routes:
       - type: rewrite
         source: /*
