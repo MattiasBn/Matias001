@@ -330,7 +330,7 @@ public function alterarSenha(Request $request)
     // Dentro da classe AuthController
     public function handleGoogleCallbackWeb(Request $request)
 {
-    $frontendUrl = env('FRONTEND_URL', 'https://sismatias.onrender.com');
+    $frontendUrl = env('FRONTEND_URL', 'https://matiasbn.onrender.com');
     $state = $request->query('state', 'login');
 
     try {

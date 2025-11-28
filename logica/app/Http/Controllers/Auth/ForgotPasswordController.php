@@ -28,7 +28,7 @@ public function sendPasswordReset(Request $request, GmailService $gmail)
     $user->save();
 
     // Link para o frontend
-    $resetLink = "https://sismatias.onrender.com/redefinir-senha?token={$token}&email={$user->email}";
+    $resetLink = "https://matiasbn.onrender.com/redefinir-senha?token={$token}&email={$user->email}";
 
     // Enviar email via Gmail API
     $subject = "Redefinição de senha";
