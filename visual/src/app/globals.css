@@ -124,6 +124,13 @@
   }
 }
 
+
+.text-small { font-size: 13px; }
+.text-medium { font-size: 16px; }
+.text-large { font-size: 19px; }
+
+
+
 /* Estilos personalizados para o PhoneInput */
 
 /* Remove a cor branca do botão de seleção de país */

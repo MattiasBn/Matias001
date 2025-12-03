@@ -78,8 +78,8 @@ export default function Header({ onMenuClick, title, onToggleCollapse }: Props) 
   const photo = user?.photo ?? null;
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : "?";
 
-  const computedTitle =
-    title ??
+ const computedTitle =
+  title ??
     (user?.role ? `Painel do ${String(user.role).charAt(0).toUpperCase()}${String(user.role).slice(1)}` : "Painel");
 
   // Lógica para notificação de perfil incompleto (usa a flag que configuramos no Laravel)

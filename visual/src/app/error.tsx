@@ -9,7 +9,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <ErrorPage
+    <ErrorPage 
       title="Ocorreu um Erro Inesperado"
       message="Desculpe, algo não saiu como o planejado. Tente novamente."
       onReset={reset} // Passa a função reset para o componente

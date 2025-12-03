@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 
 import "./globals.css";
 import { Toaster } from "sonner";
-
+//import {ReactNode} from  "react";
+import { SettingsProvider } from "@/context/SettingsContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { CookiesProvider } from "next-client-cookies/server";
 import { ThemeProvider } from "@/components/animacao/ThemeProvider";
@@ -85,7 +86,9 @@ export default function RootLayout({
             >
                <Toaster richColors position="top-right" />
                 <RouteTransition>
+                   <SettingsProvider>
                   {children}
+                  </SettingsProvider>
                 </RouteTransition>
             </ThemeProvider>
           </AuthProvider>

@@ -15,13 +15,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
 
-            $table->enum('theme', ['light', 'dark', 'system'])->default('system');
-            $table->enum('font_size', ['small', 'medium', 'large'])->default('medium');
-            $table->string('timezone')->default('Africa/Luanda');
-            $table->string('language')->default('pt');
+            $table->enum('theme', ['light', 'dark', 'system'])->nullable()->change();
+            $table->enum('font_size', ['small', 'medium', 'large'])->nullable()->change();
+            $table->string('timezone')->nullable()->change();
+            $table->string('language')->nullable()->change();
 
-            $table->boolean('email_notifications')->default(true);
-            $table->boolean('push_notifications')->default(false);
+            $table->boolean('email_notifications')->nullable()->change();
+            $table->boolean('push_notifications')->nullable()->change();
 
             $table->timestamps();
         });
