@@ -70,8 +70,10 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <Select
-              value={settings.theme}
-              onValueChange={(value: string) => updateSetting("theme", value )}
+                    value={settings.theme}
+        onValueChange={(value: "light" | "dark" | "system") =>
+          updateSetting("theme", value)
+        }
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Tema" />
