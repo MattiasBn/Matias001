@@ -15,7 +15,7 @@ const inter = { className: "font-sans" };
 //import type { Metadata } from "next";
 
 // MUDE ESTA URL PARA O SEU DOMÍNIO REAL!
-const SISTEMA_URL = "https://sismatias.onrender.com"; 
+const SISTEMA_URL = "https://matiasbn.onrender.com"; 
 
 export const metadata: Metadata = {
   // Configurações Básicas de SEO
